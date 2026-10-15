@@ -1,0 +1,168 @@
+// Drogacare - schema do banco de dados.
+// Provider padrão: SQLite (desenvolvimento). Para PostgreSQL em produção,
+// troque provider para "postgresql" e ajuste DATABASE_URL (ver ARCHITECTURE.md).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Usuários e RBAC
+// ---------------------------------------------------------------------------
+
+enum Role {
+  SUPERADMIN
+  EDITOR_CONTEUDO
+  VISUALIZADOR
+}
+
+enum ContentStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model User {
+  id           String  @id @default(cuid())
+  name         String
+  email        String  @unique
+  passwordHash String
+  role         Role    @default(VISUALIZADOR)
+  active       Boolean @default(true)
+
+  // Troca de senha obrigatória (ex.: admin inicial criado pelo seed).
+  mustChangePassword Boolean @default(false)
+
+  // Recuperação de senha: guardamos apenas o HASH (sha256) do token enviado por e-mail.
+  resetToken       String?
+  resetTokenExpiry DateTime?
+
+  // Proteção contra força bruta.
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+  lastLoginAt         DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  posts     Post[]
+  pages     Page[]
+  auditLogs AuditLog[]
+
+  @@index([role])
+}
+
+// ---------------------------------------------------------------------------
+// Auditoria (LGPD) - quem fez o quê e quando
+// ---------------------------------------------------------------------------
+
+model AuditLog {
+  id String @id @default(cuid())
+
+  // Mantemos o registro mesmo se o usuário for excluído (userId vira NULL),
+  // por isso gravamos também um "snapshot" do e-mail no momento da ação.
+  userId    String?
+  user      User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userEmail String?
+
+  action   String // ex.: LOGIN, USER_CREATE, POST_PUBLISH
+  entity   String // ex.: User, Post, Page, CompanyInfo, Auth
+  entityId String?
+  details  String? // resumo legível (NUNCA contém senhas/tokens)
+  ip       String?
+
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([userId])
+  @@index([entity, entityId])
+}
+
+// ---------------------------------------------------------------------------
+// CMS: páginas e artigos
+// ---------------------------------------------------------------------------
+
+model Post {
+  id      String        @id @default(cuid())
+  title   String
+  slug    String        @unique
+  excerpt String?
+  content String
+  coverUrl String?
+  status  ContentStatus @default(DRAFT)
+
+  // SEO
+  seoTitle       String?
+  seoDescription String?
+  seoKeywords    String?
+  ogImageUrl     String?
+
+  publishedAt DateTime?
+  authorId    String?
+  author      User?     @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, publishedAt])
+}
+
+model Page {
+  id      String        @id @default(cuid())
+  title   String
+  slug    String        @unique
+  excerpt String?
+  content String
+  status  ContentStatus @default(DRAFT)
+
+  // SEO
+  seoTitle       String?
+  seoDescription String?
+  seoKeywords    String?
+  ogImageUrl     String?
+
+  publishedAt DateTime?
+  authorId    String?
+  author      User?     @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+}
+
+// ---------------------------------------------------------------------------
+// Dados globais da empresa (Singleton: sempre id = 1)
+// ---------------------------------------------------------------------------
+
+model CompanyInfo {
+  id Int @id @default(1)
+
+  name        String @default("Drogacare")
+  tagline     String @default("Farmácia de Manipulação")
+  foundedYear Int    @default(1991)
+
+  // Farmacêutico Responsável
+  pharmacistName     String @default("")
+  pharmacistCrf      String @default("")
+  pharmacistPhotoUrl String @default("")
+
+  // Contato
+  phone        String @default("")
+  whatsapp     String @default("") // somente dígitos com DDI, ex.: 5511999999999
+  email        String @default("")
+  address      String @default("")
+  mapsEmbedUrl String @default("") // URL de incorporação do Google Maps
+
+  // Redes sociais e vídeo
+  heroVideoUrl String @default("") // YouTube ou arquivo .mp4/.webm
+  youtubeUrl   String @default("")
+  instagramUrl String @default("")
+  facebookUrl  String @default("")
+
+  updatedAt DateTime @updatedAt
+}
