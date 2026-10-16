@@ -13,9 +13,9 @@ $isActive = static fn (string $href) => $href === '/admin' ? $current === '/admi
 
 ob_start(); ?>
 <div class="flex h-full flex-col bg-brand-navy text-white">
-  <a href="<?= e(url('/admin')) ?>" class="flex items-center gap-3 px-5 py-5">
-    <img src="<?= e(asset('img/logo.svg')) ?>" alt="" class="h-9 w-9">
-    <div class="leading-tight"><p class="text-lg font-extrabold">Drogacare</p><p class="text-xs text-brand-mint">Painel de gestão</p></div>
+  <a href="<?= e(url('/admin')) ?>" class="block px-5 py-5 leading-tight">
+    <?= brand_mark(['img' => 'h-9', 'text' => 'text-lg font-extrabold', 'onDark' => true]) ?>
+    <p class="mt-1 text-xs text-brand-mint">Painel de gestão</p>
   </a>
   <nav class="flex-1 space-y-1 overflow-y-auto px-3 py-2" aria-label="Menu principal">
     <?php foreach ($nav as [$href, $label, $ic, $show]): if (!$show) continue; ?>
@@ -55,7 +55,7 @@ ob_start(); ?>
   <aside class="sticky top-0 hidden h-screen w-64 shrink-0 lg:block"><?= $sidebar ?></aside>
 
   <header class="sticky top-0 z-30 flex items-center justify-between bg-brand-navy px-4 py-3 text-white lg:hidden">
-    <a href="<?= e(url('/admin')) ?>" class="flex items-center gap-2 font-extrabold"><img src="<?= e(asset('img/logo.svg')) ?>" alt="" class="h-8 w-8"> Drogacare</a>
+    <a href="<?= e(url('/admin')) ?>" class="flex items-center font-extrabold"><?= brand_mark(['img' => 'h-8', 'text' => 'font-extrabold', 'onDark' => true]) ?></a>
     <button type="button" class="rounded-lg p-2 hover:bg-white/10" aria-label="Abrir menu" aria-expanded="false" data-drawer-open><?= icon('menu', 'h-6 w-6') ?></button>
   </header>
 

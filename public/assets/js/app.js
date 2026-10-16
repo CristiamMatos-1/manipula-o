@@ -52,6 +52,51 @@
     if (e.persisted) $$('[data-loading]').forEach(function (b) { b.disabled = false; b.classList.remove('opacity-60', 'cursor-not-allowed'); });
   });
 
+  // Pré-visualização de imagem antes de salvar (formulários do painel)
+  $$('[data-image-field]').forEach(function (box) {
+    var input = $('[data-image-input]', box), img = $('[data-image-preview]', box);
+    if (!input || !img) return;
+    input.addEventListener('change', function () {
+      var file = input.files && input.files[0];
+      if (!file) return;
+      if (file.size > 8 * 1024 * 1024) { window.alert('A imagem pode ter no máximo 8 MB.'); input.value = ''; return; }
+      img.src = URL.createObjectURL(file);
+      img.classList.remove('hidden');
+    });
+  });
+
+  // Feed da página inicial: rolagem infinita (sem JS, o botão "Carregar mais" funciona como link)
+  var feed = $('[data-feed]');
+  var more = $('[data-feed-more]');
+  if (feed && more && 'IntersectionObserver' in window && window.fetch) {
+    var loading = false;
+    var next = parseInt(feed.getAttribute('data-feed-next'), 10) || 0;
+    var link = $('[data-feed-link]', more);
+    var loadMore = function () {
+      if (loading || !next) return;
+      loading = true;
+      if (link) { link.textContent = 'Carregando...'; }
+      fetch(feed.getAttribute('data-feed-url') + '?pagina=' + next, { credentials: 'same-origin' })
+        .then(function (r) {
+          var hasMore = r.headers.get('X-Feed-More') === '1';
+          return r.text().then(function (html) { return { html: html, hasMore: hasMore }; });
+        })
+        .then(function (res) {
+          feed.insertAdjacentHTML('beforeend', res.html);
+          if (res.hasMore) { next += 1; if (link) link.textContent = 'Carregar mais'; }
+          else { next = 0; more.remove(); observer.disconnect(); }
+          loading = false;
+          if (next) { observer.unobserve(more); observer.observe(more); }
+        })
+        .catch(function () { loading = false; if (link) link.textContent = 'Carregar mais'; });
+    };
+    var observer = new IntersectionObserver(function (entries) {
+      if (entries.some(function (en) { return en.isIntersecting; })) loadMore();
+    }, { rootMargin: '600px 0px' });
+    observer.observe(more);
+    if (link) link.addEventListener('click', function (e) { e.preventDefault(); loadMore(); });
+  }
+
   // Banner de cookies (LGPD)
   var KEY = 'dc_cookie_consent';
   var banner = document.getElementById('cookie-banner');

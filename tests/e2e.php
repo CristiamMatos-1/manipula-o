@@ -54,6 +54,25 @@ final class Client
     {
         return $this->req('POST', $action, ['_csrf' => $this->csrf($formPage)] + $data);
     }
+    /** POST multipart/form-data com arquivos: $files = [campo => [caminho, nome, mime]] */
+    public function postFiles(string $formPage, string $action, array $data, array $files): array
+    {
+        $fields = ['_csrf' => $this->csrf($formPage)] + $data;
+        foreach ($files as $field => [$tmp, $name, $mime]) {
+            $fields[$field] = new CURLFile($tmp, $mime, $name);
+        }
+        $ch = curl_init($this->base . $action);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true, CURLOPT_HEADER => true, CURLOPT_FOLLOWLOCATION => false,
+            CURLOPT_COOKIEJAR => $this->jar, CURLOPT_COOKIEFILE => $this->jar, CURLOPT_POST => true, CURLOPT_POSTFIELDS => $fields,
+        ]);
+        $raw = (string) curl_exec($ch);
+        $status = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+        $hs = (int) curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+        curl_close($ch);
+        $loc = preg_match('/^Location:\s*(\S+)/mi', substr($raw, 0, $hs), $m) ? $m[1] : '';
+        return [$status, substr($raw, $hs), $loc];
+    }
 }
 
 function path(string $loc): string
@@ -155,6 +174,112 @@ check('Mapa do Google Maps no Contato', str_contains($b, 'google.com/maps?q='));
 [$s, $b] = $admin->post('/admin/empresa', '/admin/empresa', ['name' => 'Drogacare', 'founded_year' => '1991', 'hero_video_url' => 'javascript:alert(1)'] + array_fill_keys(['tagline', 'pharmacist_name', 'pharmacist_crf', 'pharmacist_photo_url', 'phone', 'whatsapp', 'email', 'address', 'maps_embed_url', 'youtube_url', 'instagram_url', 'facebook_url'], ''));
 check('URL de vídeo maliciosa é rejeitada', $s === 422);
 
+echo "== Marca (logo/nome) e páginas no feed da home ==\n";
+$png = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==');
+$imgA = tempnam(sys_get_temp_dir(), 'imgA');
+$imgB = tempnam(sys_get_temp_dir(), 'imgB');
+file_put_contents($imgA, $png);
+file_put_contents($imgB, $png . 'B');
+$fakePhp = tempnam(sys_get_temp_dir(), 'fake');
+file_put_contents($fakePhp, "<?php echo 'pwn'; ?>");
+$origin = (string) parse_url($base, PHP_URL_SCHEME) . '://' . (string) parse_url($base, PHP_URL_HOST) . (parse_url($base, PHP_URL_PORT) ? ':' . parse_url($base, PHP_URL_PORT) : '');
+$companyBase = [
+    'name' => 'Drogacare', 'tagline' => 'Farmácia de Manipulação', 'founded_year' => '1991', 'pharmacist_name' => 'Dra. Maria Silva', 'pharmacist_crf' => 'CRF-SP 12345',
+    'phone' => '(11) 3333-4444', 'whatsapp' => '5511999999999', 'email' => 'contato@drogacare.com.br', 'address' => 'Rua A, 100',
+    'maps_embed_url' => '', 'hero_video_url' => '', 'youtube_url' => '', 'instagram_url' => '', 'facebook_url' => '',
+];
+$headerOf = static function (string $html): string {
+    return preg_match('#<header.*?</header>#s', $html, $mm) ? $mm[0] : '';
+};
+$disk = static fn (string $src): string => __DIR__ . '/../public' . substr($src, (int) strpos($src, '/uploads/'));
+
+[$s, $b] = $admin->postFiles('/admin/empresa', '/admin/empresa', $companyBase + ['logo_display' => 'image'], []);
+check('Só imagem sem logo anexada é rejeitado', $s === 422 && str_contains($b, 'anexe a logo'));
+[$s, $b] = $admin->postFiles('/admin/empresa', '/admin/empresa', $companyBase + ['logo_display' => 'both'], ['logo_url_file' => [$fakePhp, 'logo.png', 'image/png']]);
+check('Arquivo PHP disfarçado de imagem é rejeitado', $s === 422 && str_contains($b, 'Formato não aceito'));
+$gifPhp = tempnam(sys_get_temp_dir(), 'gif');
+file_put_contents($gifPhp, "GIF89a\x01\x00\x01\x00\x00\x00\x00;<?php system('id'); ?>");
+[$s, $b] = $admin->postFiles('/admin/empresa', '/admin/empresa', $companyBase + ['logo_display' => 'both'], ['logo_url_file' => [$gifPhp, 'x.gif', 'image/gif']]);
+check('GIF com código PHP embutido é rejeitado', $s === 422);
+[$s, $b] = $admin->postFiles('/admin/empresa', '/admin/empresa', $companyBase + ['logo_display' => 'both'], ['logo_url_file' => [$imgA, 'logo.png', 'image/png']]);
+check('Anexa a logo da empresa', $s === 302);
+[, $b] = $anon->get('/');
+$h = $headerOf($b);
+check('Modo "imagem e nome": logo enviada + nome no topo', preg_match('#<img src="[^"]*/uploads/\d{4}/[a-f0-9]{24}\.png#', $h) === 1 && str_contains($h, 'text-xl font-extrabold text-brand-navy">Drogacare'));
+preg_match('#<img src="([^"]*/uploads/[^"]+\.png)#', $h, $lm);
+$logoSrc = $lm[1] ?? '';
+$logoFile = $disk($logoSrc);
+check('Arquivo da logo gravado em public/uploads', $logoSrc !== '' && is_file($logoFile));
+$ch = curl_init($origin . $logoSrc); curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true]); curl_exec($ch);
+check('Logo é servida como imagem', curl_getinfo($ch, CURLINFO_RESPONSE_CODE) === 200 && str_starts_with((string) curl_getinfo($ch, CURLINFO_CONTENT_TYPE), 'image/png')); curl_close($ch);
+$admin->postFiles('/admin/empresa', '/admin/empresa', $companyBase + ['logo_display' => 'image'], []);
+[, $b] = $anon->get('/');
+$h = $headerOf($b);
+check('Modo "somente imagem": sem o nome ao lado da logo', str_contains($h, '/uploads/') && !str_contains($h, 'text-xl font-extrabold text-brand-navy">Drogacare'));
+$admin->postFiles('/admin/empresa', '/admin/empresa', $companyBase + ['logo_display' => 'name'], []);
+[, $b] = $anon->get('/');
+$h = $headerOf($b);
+check('Modo "somente nome": sem imagem da logo', !str_contains($h, '/uploads/') && str_contains($h, 'text-xl font-extrabold text-brand-navy">Drogacare') && !str_contains($h, 'logo.svg'));
+[$s, $b] = $admin->postFiles('/admin/empresa', '/admin/empresa', ['name' => 'Drogacare Teste', 'logo_display' => 'both'] + $companyBase, ['logo_url_file' => [$imgB, 'nova.png', 'image/png']]);
+check('Troca a logo e o nome da empresa', $s === 302, preg_match('#role="alert"[^>]*>([^<]+)#', $b, $em) ? $em[1] : "status $s");
+[, $b] = $anon->get('/');
+check('Nome da empresa editado aparece no topo', str_contains($headerOf($b), 'Drogacare Teste'));
+clearstatcache();
+check('Logo antiga é apagada ao trocar', !is_file($logoFile));
+$admin->postFiles('/admin/empresa', '/admin/empresa', ['name' => 'Drogacare', 'logo_display' => 'both', 'logo_url_remove' => '1'] + $companyBase, []);
+[, $b] = $anon->get('/');
+check('Remover logo volta ao ícone padrão', str_contains($headerOf($b), 'logo.svg') && !str_contains($headerOf($b), '/uploads/'));
+
+$mk = static function (Client $c, string $title, string $excerpt, array $extra, array $files = []) {
+    $fields = ['title' => $title, 'excerpt' => $excerpt, 'content' => "Conteúdo de $title\n\nSegundo parágrafo.", 'intent' => 'publish', 'show_on_home_present' => '1'] + $extra;
+    return $c->postFiles('/admin/paginas/novo', '/admin/paginas/novo', $fields, $files);
+};
+[$s, , $loc] = $mk($admin, 'Novidade Um', 'Resumo da novidade um', ['show_on_home' => '1'], ['cover_url_file' => [$imgA, 'foto.png', 'image/png']]);
+check('Cria página com imagem e resumo (publicada)', $s === 302);
+[, $b] = $anon->get('/');
+$posContato = strpos($b, 'id="contato"');
+$posFeed = strpos($b, 'id="novidades"');
+$posCard = strpos($b, '/p/novidade-um');
+check('Página aparece na home DEPOIS do Contato', $posContato !== false && $posFeed !== false && $posCard !== false && $posContato < $posFeed && $posFeed < $posCard);
+preg_match('#<a href="[^"]*/p/novidade-um" class="block">\s*<img src="([^"]*/uploads/[^"]+)"#', $b, $cm);
+check('Cartão mostra imagem e resumo', !empty($cm[1]) && str_contains($b, 'Resumo da novidade um'));
+$coverFile = $disk($cm[1] ?? '');
+[$s, $pb] = $anon->get('/p/novidade-um');
+check('Clicar no cartão abre a página com o conteúdo', $s === 200 && str_contains($pb, 'Conteúdo de Novidade Um') && str_contains($pb, '/uploads/'));
+$mk($admin, 'Novidade Dois', 'Resumo dois', ['show_on_home' => '1']);
+[, $b] = $anon->get('/');
+check('Página nova entra no topo do feed (mais recente primeiro)', strpos($b, '/p/novidade-dois') < strpos($b, '/p/novidade-um'));
+$mk($admin, 'Fora da Home', 'Não deve aparecer', []);
+$admin->postFiles('/admin/paginas/novo', '/admin/paginas/novo', ['title' => 'Rascunho Feed', 'content' => 'x', 'intent' => 'draft', 'show_on_home_present' => '1', 'show_on_home' => '1'], []);
+[, $b] = $anon->get('/');
+check('Página sem "mostrar na home" não aparece no feed', !str_contains($b, '/p/fora-da-home'));
+check('Rascunho não aparece no feed', !str_contains($b, '/p/rascunho-feed'));
+preg_match('#id="novidades".*?</main>#s', $b, $fm);
+check('Política de Privacidade não polui o feed', isset($fm[0]) && !str_contains($fm[0], 'politica-de-privacidade'));
+foreach (range(3, 8) as $i) {
+    $mk($admin, "Novidade Extra $i", "Resumo extra $i", ['show_on_home' => '1']);
+    usleep(1100000);
+}
+[, $b] = $anon->get('/');
+check('Feed pagina: home mostra 6 cartões + "Carregar mais"', substr_count($b, 'data-feed-item') === 6 && str_contains($b, 'Carregar mais'));
+[$s, $fr] = $anon->get('/feed?pagina=2');
+check('Rolagem infinita: /feed?pagina=2 devolve os próximos cartões', $s === 200 && substr_count($fr, 'data-feed-item') === 2 && str_contains($fr, '/p/novidade-um'));
+[, $b] = $anon->get('/?pagina=2');
+check('Sem JavaScript: /?pagina=2 mostra todos os cartões', substr_count($b, 'data-feed-item') === 8 && !str_contains($b, 'Carregar mais'));
+
+[, $lst] = $admin->get('/admin/paginas');
+preg_match('#/admin/paginas/(\d+)" class="font-bold text-brand-blue">Novidade Um<#', $lst, $um);
+$pageId = (int) ($um[1] ?? 0);
+check('Localiza a página criada no painel', $pageId > 0);
+$admin->postFiles("/admin/paginas/$pageId", "/admin/paginas/$pageId", ['title' => 'Novidade Um', 'excerpt' => 'Resumo da novidade um', 'content' => 'Texto', 'intent' => 'publish', 'show_on_home_present' => '1', 'show_on_home' => '1'], ['cover_url_file' => [$imgB, 'outra.png', 'image/png']]);
+clearstatcache();
+check('Trocar a imagem da página apaga a antiga', !is_file($coverFile));
+$admin->postFiles("/admin/paginas/$pageId", "/admin/paginas/$pageId", ['title' => 'Novidade Um', 'excerpt' => 'Resumo da novidade um', 'content' => 'Texto', 'intent' => 'draft', 'show_on_home_present' => '1', 'show_on_home' => '1'], []);
+[, $b] = $anon->get('/?pagina=2');
+check('Despublicar remove o cartão do feed', !str_contains($b, '/p/novidade-um'));
+[$s] = $anon->get('/p/novidade-um');
+check('Página despublicada some do site', $s === 404);
+
 echo "== RBAC: Editor ==\n";
 $editor = new Client($base);
 [$s, , $loc] = $editor->post('/admin/login', '/admin/login', ['email' => 'editor@teste.com', 'password' => $pwEditor]);
@@ -225,7 +350,17 @@ check('Após 5 falhas a conta bloqueia (mesmo com senha certa)', $s === 422 && s
 
 echo "== Auditoria ==\n";
 [$s, $b] = $admin->get('/admin/auditoria');
-check('Auditoria lista login, falhas, usuários, publicação e recuperação', $s === 200 && str_contains($b, 'LOGIN_FAILED') && str_contains($b, 'USER_CREATE') && str_contains($b, 'POST_PUBLISH') && str_contains($b, 'PASSWORD_RESET_COMPLETED') && str_contains($b, 'LOGIN_LOCKED'));
+$aud = static function (string $q) use ($admin): string {
+    [, $html] = $admin->get('/admin/auditoria?q=' . $q);
+    return $html;
+};
+check('Auditoria lista login, falhas, usuários, publicação e recuperação', $s === 200
+    && str_contains($aud('LOGIN_FAILED'), 'LOGIN_FAILED') && str_contains($aud('USER_CREATE'), 'USER_CREATE')
+    && str_contains($aud('POST_PUBLISH'), 'POST_PUBLISH') && str_contains($aud('PASSWORD_RESET_COMPLETED'), 'PASSWORD_RESET_COMPLETED')
+    && str_contains($aud('LOGIN_LOCKED'), 'LOGIN_LOCKED'));
+$b3 = $aud('PAGE_PUBLISH');
+$b4 = $aud('COMPANY_UPDATE');
+check('Auditoria registra páginas e dados da empresa', str_contains($b3, 'PAGE_PUBLISH') && str_contains($b4, 'COMPANY_UPDATE'));
 check('Auditoria não expõe senhas/tokens', !str_contains($b, $token) && !str_contains($b, 'Drogacare@2026Ok'));
 [, $b] = $admin->get('/admin/auditoria?q=USER_CREATE');
 check('Busca na auditoria filtra', str_contains($b, 'USER_CREATE') && !str_contains($b, 'LOGIN_FAILED'));

@@ -82,11 +82,25 @@ Tabelas em `database/schema.sql` (idempotente):
 
 - **users** — `role ENUM('SUPERADMIN','EDITOR_CONTEUDO','VISUALIZADOR')`, `active`, `must_change_password`, `reset_token` (sha256 do token), `reset_token_expiry`, `failed_login_attempts`, `locked_until`, `last_login_at`; `email` único.
 - **audit_logs** — `user_id` (FK `ON DELETE SET NULL`), `user_email` (snapshot), `action`, `entity`, `entity_id`, `details`, `ip`, `created_at`; índices por data, usuário, entidade e (ip, action, created_at) usado no throttling.
+- **pages**/**posts** `cover_url`: imagem enviada; **pages** também tem `show_on_home` (entra no feed da home).
 - **posts** — `title`, `slug` único, `excerpt`, `content`, `cover_url`, `meta_title`, `meta_description`, `status ENUM('DRAFT','PUBLISHED')`, `published_at`, `author_id`.
 - **pages** — igual a `posts` sem capa/resumo.
-- **company_info** — singleton (`id = 1` com `CHECK`): nome, slogan, `founded_year` (1991), farmacêutico (nome, CRF, foto), telefone, WhatsApp, e-mail, endereço, `maps_embed_url`, `hero_video_url`, `youtube_url`, `instagram_url`, `facebook_url`.
+- **company_info** — singleton (inclui `logo_url` e `logo_display` ENUM `both|image|name`) (`id = 1` com `CHECK`): nome, slogan, `founded_year` (1991), farmacêutico (nome, CRF, foto), telefone, WhatsApp, e-mail, endereço, `maps_embed_url`, `hero_video_url`, `youtube_url`, `instagram_url`, `facebook_url`.
 
 Todas as consultas usam prepared statements; nomes de tabela nunca vêm do usuário (`ContentRepo` fixa os nomes).
+
+### Uploads de imagem
+`App\Core\Upload::image()`: valida conteúdo real (`getimagesize` + `finfo`, só JPG/PNG/WebP/GIF), limite 8 MB e 12000 px, rejeita arquivos com `<?php`,
+nome aleatório (`public/uploads/AAAA/<24 hex>.<ext>`), e com GD regrava a imagem (remove metadados/conteúdo embutido, corrige orientação EXIF e reduz para 1600 px).
+O caminho é gravado como `/uploads/...`. `public/uploads/.htaccess` desativa scripts, bloqueia `php/html/svg/js` e envia CSP restritiva. SVG não é aceito.
+Imagens antigas são apagadas ao trocar/remover. `public/.user.ini` (e na raiz) eleva `upload_max_filesize` para 8M quando o host permite.
+
+### Feed da página inicial
+Páginas `PUBLISHED` com `show_on_home = 1` aparecem na seção `#novidades` da home, **depois do Contato**, `ORDER BY published_at DESC, id DESC`, 6 por vez.
+`GET /feed?pagina=N` devolve o fragmento HTML (rolagem infinita via `IntersectionObserver`); sem JS, `/?pagina=N` renderiza N×6 cartões.
+
+### Migrações
+`App\Core\Migrator` (versão em `storage/schema.version`) adiciona colunas novas em bancos já instalados no primeiro acesso após atualizar.
 
 ## 6. RBAC
 
@@ -136,7 +150,7 @@ O menu esconde itens, mas a autorização real é sempre no servidor (testado co
 
 ## 9. Rotas
 
-Público: `/`, `/blog`, `/blog/{slug}`, `/p/{slug}`, `/sitemap.xml`, `/robots.txt`.
+Público: `/`, `/feed?pagina=N`, `/blog`, `/blog/{slug}`, `/p/{slug}`, `/sitemap.xml`, `/robots.txt`.
 Autenticação: `/admin/login`, `/admin/logout`, `/admin/esqueci-senha`, `/admin/redefinir-senha?token=`, `/admin/alterar-senha`, `/admin/acesso-negado`.
 Painel: `/admin`, `/admin/posts[/novo|/{id}|/{id}/excluir]`, `/admin/paginas[...]`, `/admin/empresa`, `/admin/usuarios[...]`, `/admin/auditoria`.
 Instalação (somente enquanto não instalado): `/install.php` (arquivo físico na raiz, funciona sem `mod_rewrite`) e `/install`.
@@ -170,7 +184,7 @@ bloqueio por tentativas e auditoria. Deve ser rodado em uma instalação nova (c
 
 - **Sem framework/Composer**: reduz superfície, facilita hospedagem compartilhada; o custo é manter roteamento/validação próprios.
 - **SMTP próprio** simples (AUTH LOGIN); para volume ou entregabilidade avançada, trocar por um provedor transacional.
-- **Sem upload de imagens**: fotos/capas são URLs (http/https ou caminho em `public/`). Upload com validação de MIME pode ser a próxima evolução.
+- **Uploads em disco local** (`public/uploads`): em múltiplos servidores usar armazenamento compartilhado/objeto; não há biblioteca de mídia (cada imagem pertence a um registro).
 - **Sem migrações versionadas**: o `schema.sql` é idempotente para criação; alterações futuras exigem scripts incrementais.
 - **Sem 2FA** no painel; recomendável para o SUPERADMIN em evolução futura.
 - **Sessões em arquivos** (`storage/sessions`); em múltiplos servidores usar handler compartilhado.

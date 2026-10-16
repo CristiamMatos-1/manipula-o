@@ -6,6 +6,12 @@
 !/storage/sessions/.gitkeep
 !/storage/logs/.gitkeep
 
+# imagens enviadas pelo painel
+/public/uploads/*
+!/public/uploads/.htaccess
+!/public/uploads/.gitkeep
+/storage/schema.version
+
 # dependências de build do CSS (só necessárias para recompilar o Tailwind)
 /node_modules
 

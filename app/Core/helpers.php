@@ -155,3 +155,57 @@ function alert_box(?string $message, string $type = 'error'): string
     $cls = $type === 'error' ? 'border-red-200 bg-red-50 text-red-700' : 'border-brand-green bg-brand-mint/50 text-brand-forest';
     return '<p role="' . ($type === 'error' ? 'alert' : 'status') . '" class="mb-4 rounded-lg border px-3 py-2 text-sm font-medium ' . $cls . '">' . e($message) . '</p>';
 }
+
+/**
+ * Marca da empresa (logo e/ou nome conforme configurado em Dados da empresa).
+ * $o: img (classe de altura, ex. "h-9"), text (classes do nome), onDark (fundo escuro: logo enviada ganha moldura clara).
+ */
+function brand_mark(array $o = []): string
+{
+    try {
+        $c = Config::installed() ? \App\Models\Company::get() : [];
+    } catch (\Throwable) {
+        $c = [];
+    }
+    $name = (string) ($c['name'] ?? 'Drogacare');
+    $mode = (string) ($c['logo_display'] ?? 'both');
+    $uploaded = safe_image_url((string) ($c['logo_url'] ?? ''));
+    $showImage = $mode !== 'name';
+    $showName = $mode !== 'image' || !$uploaded;
+    $h = $o['img'] ?? 'h-9';
+    $html = '<span class="inline-flex items-center gap-2">';
+    if ($showImage) {
+        if ($uploaded) {
+            $frame = !empty($o['onDark']) ? ' rounded-lg bg-white p-1' : '';
+            $html .= '<img src="' . e($uploaded) . '" alt="' . ($showName ? '' : e($name)) . '" class="' . e($h) . ' w-auto max-w-[200px] object-contain' . $frame . '">';
+        } else {
+            $html .= '<img src="' . e(asset('img/logo.svg')) . '" alt="" class="' . e($h) . ' aspect-square w-auto">';
+        }
+    }
+    if ($showName) {
+        $html .= '<span class="' . e($o['text'] ?? '') . '">' . e($name) . '</span>';
+    }
+    return $html . '</span>';
+}
+
+/** Campo de imagem: pré-visualização, seleção de arquivo e opção de remover. $column é o nome da coluna no banco. */
+function image_field(string $label, string $column, ?string $current, ?string $error = null, ?string $hint = null): string
+{
+    $src = safe_image_url($current ?? '');
+    $html = '<div data-image-field><span class="label">' . e($label) . '</span>';
+    $html .= '<div class="mt-1 flex flex-wrap items-center gap-4">';
+    $html .= '<img data-image-preview src="' . e($src ?? '') . '" alt="" class="h-20 w-20 rounded-xl border border-brand-navy/10 bg-brand-mint/20 object-contain ' . ($src ? '' : 'hidden') . '">';
+    $html .= '<div class="min-w-0 flex-1">';
+    $html .= '<input type="file" id="' . e($column) . '_file" name="' . e($column) . '_file" accept="image/jpeg,image/png,image/webp,image/gif" data-image-input class="block w-full text-sm file:mr-3 file:min-h-[40px] file:rounded-lg file:border-0 file:bg-brand-blue file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-brand-navy">';
+    if ($src) {
+        $html .= '<label class="mt-2 inline-flex items-center gap-2 text-sm"><input type="checkbox" name="' . e($column) . '_remove" value="1" class="h-4 w-4 rounded border-brand-navy/30"> Remover imagem atual</label>';
+    }
+    $html .= '</div></div>';
+    if ($hint && !$error) {
+        $html .= '<p class="mt-1 text-xs text-brand-navy/60">' . e($hint) . '</p>';
+    }
+    if ($error) {
+        $html .= '<p role="alert" class="mt-1 text-xs font-medium text-red-600">' . e($error) . '</p>';
+    }
+    return $html . '</div>';
+}

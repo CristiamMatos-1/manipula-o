@@ -106,4 +106,21 @@ $wa = Embed::whatsapp($c['whatsapp'], 'Olá! Gostaria de falar com a Drogacare.'
       </div>
     </div>
   </section>
+
+  <?php if (!empty($feed)): ?>
+  <!-- Novidades: cada página publicada vira um cartão aqui, depois do Contato (mais novas primeiro) -->
+  <section id="novidades" class="scroll-mt-16 bg-brand-mint/20 py-12 sm:py-16" aria-labelledby="novidades-titulo">
+    <div class="container max-w-2xl">
+      <h2 id="novidades-titulo" class="section-title">Novidades</h2>
+      <div class="mt-8 space-y-6" data-feed data-feed-url="<?= e(url('/feed')) ?>" data-feed-next="<?= $feedHasMore ? (int) $feedPage + 1 : 0 ?>">
+        <?php foreach ($feed as $card) { require APP_PATH . '/Views/partials/feed_card.php'; } ?>
+      </div>
+      <?php if ($feedHasMore): ?>
+        <div class="mt-8 text-center" data-feed-more>
+          <a href="<?= e(url('/?pagina=' . ((int) $feedPage + 1) . '#novidades')) ?>" class="btn-secondary" data-feed-link>Carregar mais</a>
+        </div>
+      <?php endif ?>
+    </div>
+  </section>
+  <?php endif ?>
 </main>

@@ -75,6 +75,9 @@ CREATE TABLE IF NOT EXISTS pages (
   slug VARCHAR(160) NOT NULL,
   excerpt VARCHAR(300) NULL,
   content MEDIUMTEXT NOT NULL,
+  cover_url VARCHAR(500) NULL,
+  -- 1 = aparece como cartão no feed da página inicial (depois do Contato)
+  show_on_home TINYINT(1) NOT NULL DEFAULT 1,
   status ENUM('DRAFT','PUBLISHED') NOT NULL DEFAULT 'DRAFT',
   seo_title VARCHAR(70) NULL,
   seo_description VARCHAR(160) NULL,
@@ -87,6 +90,7 @@ CREATE TABLE IF NOT EXISTS pages (
   PRIMARY KEY (id),
   UNIQUE KEY uq_pages_slug (slug),
   KEY idx_pages_status (status),
+  KEY idx_pages_feed (status, show_on_home, published_at),
   CONSTRAINT fk_pages_author FOREIGN KEY (author_id) REFERENCES users (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -94,6 +98,9 @@ CREATE TABLE IF NOT EXISTS pages (
 CREATE TABLE IF NOT EXISTS company_info (
   id TINYINT UNSIGNED NOT NULL DEFAULT 1,
   name VARCHAR(100) NOT NULL DEFAULT 'Drogacare',
+  -- Logo: imagem enviada + o que mostrar no topo/rodapé (image = só imagem, name = só nome, both = os dois)
+  logo_url VARCHAR(500) NOT NULL DEFAULT '',
+  logo_display ENUM('both','image','name') NOT NULL DEFAULT 'both',
   tagline VARCHAR(120) NOT NULL DEFAULT 'Farmácia de Manipulação',
   founded_year SMALLINT UNSIGNED NOT NULL DEFAULT 1991,
   -- Farmacêutico Responsável

@@ -82,7 +82,6 @@ abstract class ContentController extends AdminController
             'slug' => Request::str('slug'),
             'excerpt' => Request::str('excerpt'),
             'content' => trim(Request::raw('content')),
-            'cover_url' => Request::str('cover_url'),
             'seo_title' => Request::str('seo_title'),
             'seo_description' => Request::str('seo_description'),
             'seo_keywords' => Request::str('seo_keywords'),
@@ -99,17 +98,21 @@ abstract class ContentController extends AdminController
         if ($len($v['seo_title']) > 70) $errors['seo_title'] = 'Máximo de 70 caracteres.';
         if ($len($v['seo_description']) > 160) $errors['seo_description'] = 'Máximo de 160 caracteres.';
         if ($len($v['seo_keywords']) > 200) $errors['seo_keywords'] = 'Máximo de 200 caracteres.';
-        foreach (['cover_url', 'og_image_url'] as $f) {
-            if ($v[$f] !== '' && !safe_image_url($v[$f])) $errors[$f] = 'Use uma URL http(s) ou um caminho que comece com /.';
-        }
+        if ($v['og_image_url'] !== '' && !safe_image_url($v['og_image_url'])) $errors['og_image_url'] = 'Use uma URL http(s) ou um caminho que comece com /.';
+        $showOnHome = $this->kind === 'page' && (isset($_POST['show_on_home_present'])
+            ? Request::str('show_on_home') === '1'
+            : (bool) ($existing['show_on_home'] ?? 1));
 
         $slug = slugify($v['slug'] !== '' ? $v['slug'] : $v['title']);
         if ($slug === '' && !isset($errors['title'])) $errors['slug'] = 'Slug inválido.';
         elseif ($slug !== '' && $repo->slugTaken($slug, $id)) $errors['slug'] = 'Já existe um item com este endereço (slug).';
 
+        $v['show_on_home'] = $showOnHome ? '1' : '0';
+        $oldCover = $existing['cover_url'] ?? null;
+        $cover = $errors ? $oldCover : $this->imageValue('cover_url', $oldCover, $errors);
+
         if ($errors) {
-            $item = $existing;
-            $this->render('admin/content_form', ['title' => $existing['title'] ?? 'Novo ' . $this->singular, 'user' => $user, 'item' => $item, 'v' => $v, 'errors' => $errors, 'c' => $this->ctx()], 'layouts/admin', 422);
+            $this->render('admin/content_form', ['title' => $existing['title'] ?? 'Novo ' . $this->singular, 'user' => $user, 'item' => $existing, 'v' => $v, 'errors' => $errors, 'c' => $this->ctx()], 'layouts/admin', 422);
             return;
         }
 
@@ -118,13 +121,16 @@ abstract class ContentController extends AdminController
         $savedId = $repo->save($id, [
             'title' => $v['title'], 'slug' => $slug,
             'excerpt' => $v['excerpt'] ?: null, 'content' => $v['content'],
-            'cover_url' => $v['cover_url'] ?: null,
+            'cover_url' => $cover ?: null,
+            'show_on_home' => $showOnHome ? 1 : 0,
             'seo_title' => $v['seo_title'] ?: null, 'seo_description' => $v['seo_description'] ?: null,
             'seo_keywords' => $v['seo_keywords'] ?: null, 'og_image_url' => $v['og_image_url'] ?: null,
             'status' => $intent === 'publish' ? 'PUBLISHED' : 'DRAFT',
             'published_at' => $intent === 'publish' ? ($existing['published_at'] ?? $now) : ($existing['published_at'] ?? null),
             'author_id' => $user['id'],
         ]);
+
+        $this->discardReplacedImage($oldCover, $cover ?: null);
 
         $E = strtoupper($this->entity);
         $action = $intent === 'publish'

@@ -79,6 +79,17 @@ php bin/install.php --db=NOME_DO_BANCO --user=USUARIO --pass=SENHA \
 2. Preencha título, resumo e conteúdo. Preencha também os campos de SEO (título e descrição para o Google).
 3. Clique em **Salvar rascunho** (não aparece no site) ou **Publicar** (aparece em `/blog`).
 
+**Criar uma página que aparece na página inicial (estilo feed)**
+1. Painel → **Páginas** → **Nova página**.
+2. Preencha título, **resumo** e conteúdo; se quiser, **anexe uma imagem** (JPG, PNG, WebP ou GIF).
+3. Deixe marcado **Mostrar na página inicial** e clique em **Publicar**.
+4. A página vira um cartão (imagem + título + resumo) na seção **Novidades**, que fica **logo depois do Contato**. As páginas mais novas aparecem primeiro e a página inicial vai crescendo com a rolagem (carrega mais cartões automaticamente). Ao clicar no cartão, o visitante abre a página completa.
+5. Para tirar da página inicial sem apagar a página, desmarque "Mostrar na página inicial" ou despublique.
+
+**Logo e nome da empresa**
+Painel → **Empresa** → **Identidade**: edite o nome, anexe a imagem da logo e escolha o que exibir no topo, rodapé e painel:
+*Imagem e nome*, *Somente a imagem* ou *Somente o nome*. A foto do farmacêutico também é enviada por anexo.
+
 **Formatação do texto**
 Por segurança o editor aceita apenas: `# Título`, `## Subtítulo`, listas com `- item`, `**negrito**` e links `[texto](https://endereco)`.
 Qualquer outro código HTML é exibido como texto puro (não executa).
@@ -102,8 +113,8 @@ Se o envio de e-mails (SMTP) não estiver configurado, o e-mail é apenas *simul
 
 ## 7. Backup
 
-Faça regularmente a exportação do banco (cPanel → phpMyAdmin → Exportar) e uma cópia do arquivo
-`config/config.php`. O código do site pode ser restaurado reenviando os arquivos.
+Faça regularmente a exportação do banco (cPanel → phpMyAdmin → Exportar), uma cópia do arquivo
+`config/config.php` e da pasta `public/uploads/` (imagens enviadas). O código do site pode ser restaurado reenviando os arquivos.
 
 ## 8. Suporte técnico
 

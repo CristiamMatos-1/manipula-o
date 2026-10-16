@@ -49,6 +49,7 @@ Pelo Gerenciador de Arquivos (botão direito → *Alterar permissões*), garanta
 
 - `storage/` e subpastas (`storage/logs`, `storage/sessions`) — permissão **755** (use 775 se der erro).
 - `config/` — **755** durante a instalação (o instalador cria `config/config.php`).
+- `public/uploads/` — **755** (imagens anexadas pelo painel: logo, fotos e imagens das páginas). Se o envio falhar, use 775.
 
 ## Passo 4 — Rodar o instalador
 
@@ -105,8 +106,8 @@ RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [L,R=301]
 ## Atualizações
 
 1. Faça backup: exporte o banco (phpMyAdmin → Exportar) e copie `config/config.php`.
-2. Envie os arquivos novos sobrescrevendo os antigos, **sem apagar** `config/config.php` e `storage/installed.lock`.
-3. O esquema do banco é idempotente (`database/schema.sql`); mudanças futuras virão com instruções.
+2. Envie os arquivos novos sobrescrevendo os antigos, **sem apagar** `config/config.php`, `storage/installed.lock` e `public/uploads/`.
+3. O banco é atualizado automaticamente no primeiro acesso após a atualização (novas colunas são criadas sozinhas; `storage/schema.version` controla isso).
 
 ## Reinstalar do zero
 
@@ -122,6 +123,7 @@ Apague `config/config.php` e `storage/installed.lock`, esvazie/recrie o banco e 
 | "Access denied for user" no instalador | Usuário sem privilégios no banco | Refaça "Adicionar usuário ao banco" com todos os privilégios; use o nome completo com prefixo |
 | "Could not write config" | Sem permissão em `config/` | Aplique 755/775 na pasta `config` |
 | Fica pedindo login toda hora | Sessão sem permissão de escrita | Garanta escrita em `storage/sessions` (ou na pasta de sessões do PHP) |
+| Erro ao anexar imagem / "maior que o limite do servidor" | Limite de upload do PHP (cPanel → MultiPHP INI Editor) | Aumente `upload_max_filesize` e `post_max_size` (8M/12M) ou envie imagem menor; confira permissão de `public/uploads` |
 | E-mail de recuperação não chega | SMTP não configurado | Configure `smtp_url`; enquanto isso consulte `storage/logs/mail.log` |
 | Mapa/vídeo não aparecem | URL incorreta | Use o link do YouTube e o `src` do iframe do Google Maps; outros domínios são bloqueados por segurança |
 | CSS quebrado | Raiz do documento errada | Domínio deve apontar para a pasta do projeto (com `.htaccess`) ou para `public/` |

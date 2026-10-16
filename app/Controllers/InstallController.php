@@ -66,6 +66,8 @@ final class InstallController extends Controller
             'Extensão openssl (SMTP seguro)' => extension_loaded('openssl'),
             'Pasta config/ gravável' => is_writable(ROOT . '/config'),
             'Pasta storage/ gravável' => is_writable(ROOT . '/storage'),
+            'Extensão fileinfo (envio de imagens)' => extension_loaded('fileinfo'),
+            'Pasta public/uploads gravável (imagens)' => is_dir(ROOT . '/public/uploads') && is_writable(ROOT . '/public/uploads'),
             'Pasta storage/sessions gravável' => is_writable(ROOT . '/storage/sessions'),
         ];
     }

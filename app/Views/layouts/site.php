@@ -34,8 +34,8 @@ $nav = [['/#sobre', 'Sobre nós'], ['/blog', 'Artigos'], ['/#contato', 'Contato'
 
 <header class="sticky top-0 z-40 border-b border-brand-navy/10 bg-white/95 backdrop-blur">
   <div class="container flex h-16 items-center justify-between">
-    <a href="<?= e(url('/')) ?>" class="flex items-center gap-2 text-xl font-extrabold text-brand-navy">
-      <img src="<?= e(asset('img/logo.svg')) ?>" alt="" class="h-9 w-9"> <?= e($c['name'] ?? 'Drogacare') ?>
+    <a href="<?= e(url('/')) ?>" class="flex items-center">
+      <?= brand_mark(['img' => 'h-10', 'text' => 'text-xl font-extrabold text-brand-navy']) ?>
     </a>
     <nav class="hidden items-center gap-1 md:flex" aria-label="Principal">
       <?php foreach ($nav as [$href, $label]): ?>
@@ -63,7 +63,7 @@ $nav = [['/#sobre', 'Sobre nós'], ['/blog', 'Artigos'], ['/#contato', 'Contato'
 <footer class="bg-brand-navy text-white">
   <div class="container grid gap-8 py-10 sm:grid-cols-2 lg:grid-cols-3">
     <div>
-      <p class="flex items-center gap-2 text-xl font-extrabold"><img src="<?= e(asset('img/logo.svg')) ?>" alt="" class="h-9 w-9"> <?= e($c['name'] ?? 'Drogacare') ?></p>
+      <p><?= brand_mark(['img' => 'h-10', 'text' => 'text-xl font-extrabold', 'onDark' => true]) ?></p>
       <p class="mt-2 text-sm text-brand-mint"><?= e($c['tagline'] ?? '') ?> · desde <?= e($c['founded_year'] ?? 1991) ?></p>
       <ul class="mt-4 flex gap-3">
         <?php foreach (['instagram_url' => ['instagram', 'Instagram'], 'facebook_url' => ['facebook', 'Facebook'], 'youtube_url' => ['youtube', 'YouTube']] as $key => [$ic, $label]): ?>

@@ -16,15 +16,24 @@ $pageDesc = $isNew
 $pageActions = ($published) ? '<a href="' . e(url($c['public'] . '/' . $item['slug'])) . '" target="_blank" rel="noopener" class="btn-secondary">' . icon('external-link', 'h-4 w-4') . ' Ver no site</a>' : '';
 require __DIR__ . '/_header.php';
 ?>
-<form method="post" action="<?= e(url($action)) ?>" class="space-y-6" novalidate>
+<form method="post" action="<?= e(url($action)) ?>" class="space-y-6" enctype="multipart/form-data" novalidate>
   <?= csrf_field() ?>
   <fieldset <?= $canWrite ? '' : 'disabled' ?> class="space-y-6">
     <div class="card space-y-4">
       <?= field('Título', 'title', ['value' => $val('title'), 'error' => $errors['title'] ?? null, 'attrs' => 'required maxlength="150"']) ?>
       <?= field('Endereço (slug)', 'slug', ['value' => $val('slug'), 'error' => $errors['slug'] ?? null, 'attrs' => 'maxlength="80"', 'hint' => 'Deixe em branco para gerar automaticamente a partir do título. Ex.: cuidados-com-a-pele']) ?>
       <?= field('Resumo', 'excerpt', ['type' => 'textarea', 'rows' => 2, 'value' => $val('excerpt'), 'error' => $errors['excerpt'] ?? null, 'attrs' => 'maxlength="300"', 'hint' => 'Aparece nas listagens e ao compartilhar.']) ?>
-      <?php if ($c['kind'] === 'post'): ?>
-        <?= field('Imagem de capa (URL)', 'cover_url', ['value' => $val('cover_url'), 'error' => $errors['cover_url'] ?? null, 'attrs' => 'placeholder="https://..."']) ?>
+      <?= image_field($c['kind'] === 'page' ? 'Imagem da página (opcional)' : 'Imagem de capa (opcional)', 'cover_url', $item['cover_url'] ?? null, $errors['cover_url'] ?? null,
+          $c['kind'] === 'page' ? 'Aparece no cartão da página inicial e no topo da página. JPG, PNG, WebP ou GIF.' : 'Aparece nas listagens e no topo do artigo. JPG, PNG, WebP ou GIF.') ?>
+      <?php if ($c['kind'] === 'page'): ?>
+        <?php $onHome = isset($v['show_on_home']) ? $v['show_on_home'] === '1' : (bool) ($item['show_on_home'] ?? 1); ?>
+        <div>
+          <input type="hidden" name="show_on_home_present" value="1">
+          <label class="inline-flex items-start gap-3 text-sm">
+            <input type="checkbox" name="show_on_home" value="1" class="mt-0.5 h-5 w-5 rounded border-brand-navy/30" <?= $onHome ? 'checked' : '' ?>>
+            <span><strong>Mostrar na página inicial</strong><br><span class="text-xs text-brand-navy/60">Ao publicar, a página entra no feed da página inicial, logo abaixo do Contato (as mais novas primeiro), com imagem e resumo. Clicar no cartão abre a página completa.</span></span>
+          </label>
+        </div>
       <?php endif ?>
       <?= field('Conteúdo', 'content', ['type' => 'textarea', 'rows' => 14, 'value' => $val('content'), 'error' => $errors['content'] ?? null, 'inputClass' => 'font-mono', 'attrs' => 'required', 'hint' => 'Formatação: ## Subtítulo · - item de lista · **negrito** · [texto](https://link). Separe parágrafos com uma linha em branco.']) ?>
     </div>

@@ -13,7 +13,7 @@ final class ContentRepo
     }
 
     public static function posts(): self { return new self('posts', true); }
-    public static function pages(): self { return new self('pages', false); }
+    public static function pages(): self { return new self('pages', true); }
 
     public static function for(string $kind): self
     {
@@ -34,6 +34,21 @@ final class ContentRepo
             $sql .= ' LIMIT ' . (int) $limit;
         }
         return Database::all($sql);
+    }
+
+    /** Cartões do feed da página inicial (páginas publicadas marcadas para a home), mais recentes primeiro. */
+    public function feed(int $limit, int $offset = 0): array
+    {
+        return Database::all(
+            "SELECT slug, title, excerpt, cover_url, published_at FROM pages
+             WHERE status = 'PUBLISHED' AND show_on_home = 1
+             ORDER BY published_at DESC, id DESC LIMIT " . (int) $limit . ' OFFSET ' . (int) $offset
+        );
+    }
+
+    public function feedCount(): int
+    {
+        return (int) Database::value("SELECT COUNT(*) FROM pages WHERE status = 'PUBLISHED' AND show_on_home = 1");
     }
 
     public function find(int $id): ?array
@@ -64,6 +79,9 @@ final class ContentRepo
         $cols = ['title', 'slug', 'excerpt', 'content', 'seo_title', 'seo_description', 'seo_keywords', 'og_image_url', 'status', 'published_at'];
         if ($this->hasCover) {
             $cols[] = 'cover_url';
+        }
+        if ($this->table === 'pages') {
+            $cols[] = 'show_on_home';
         }
         if ($id) {
             $sets = implode(', ', array_map(static fn ($c) => "`$c` = ?", $cols));

@@ -16,6 +16,7 @@ return static function (Router $r, bool $installed): void {
 
     // Site público
     $r->get('/', [SiteController::class, 'home']);
+    $r->get('/feed', [SiteController::class, 'feed']);
     $r->get('/blog', [SiteController::class, 'blog']);
     $r->get('/blog/{slug}', [SiteController::class, 'post']);
     $r->get('/p/{slug}', [SiteController::class, 'page']);

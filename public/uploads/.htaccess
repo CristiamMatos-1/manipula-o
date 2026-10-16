@@ -1,0 +1,23 @@
+# Somente imagens: nunca executar scripts nesta pasta
+Options -Indexes -ExecCGI
+<IfModule mod_php.c>
+  php_flag engine off
+</IfModule>
+<IfModule mod_php7.c>
+  php_flag engine off
+</IfModule>
+<IfModule mod_php8.c>
+  php_flag engine off
+</IfModule>
+<IfModule mod_mime.c>
+  RemoveHandler .php .phtml .php3 .php4 .php5 .php7 .php8 .phar
+  RemoveType .php .phtml .php3 .php4 .php5 .php7 .php8 .phar
+</IfModule>
+<FilesMatch "(?i)\.(php[0-9]?|phtml|phar|pl|py|cgi|sh|html?|svg|js)$">
+  Require all denied
+</FilesMatch>
+<IfModule mod_headers.c>
+  Header set X-Content-Type-Options "nosniff"
+  Header set Content-Security-Policy "default-src 'none'; img-src 'self'; style-src 'none'; sandbox"
+  Header set Cache-Control "public, max-age=2592000"
+</IfModule>

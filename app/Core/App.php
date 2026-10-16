@@ -15,6 +15,10 @@ final class App
             redirect('/install.php');
         }
 
+        if ($installed) {
+            Migrator::run();
+        }
+
         $router = new Router();
         (require APP_PATH . '/routes.php')($router, $installed);
         $router->dispatch(Request::method(), Request::path());
@@ -30,7 +34,7 @@ final class App
             "default-src 'self'",
             "script-src 'self'",
             "style-src 'self'",
-            "img-src 'self' data: https: http:",
+            "img-src 'self' data: blob: https: http:",
             "media-src 'self' https: http:",
             "font-src 'self'",
             "frame-src https://www.youtube-nocookie.com https://www.google.com",

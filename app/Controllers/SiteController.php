@@ -8,13 +8,34 @@ use App\Models\ContentRepo;
 
 final class SiteController extends Controller
 {
+    private const FEED_PER_PAGE = 6;
+
     public function home(): void
     {
+        $pages = ContentRepo::pages();
+        $page = max(1, min(50, (int) \App\Core\Request::query('pagina')));
+        $limit = $page * self::FEED_PER_PAGE;
         $this->render('site/home', [
             'company' => Company::get(),
             'posts' => ContentRepo::posts()->published(3),
+            'feed' => $pages->feed($limit),
+            'feedPage' => $page,
+            'feedHasMore' => $pages->feedCount() > $limit,
             'meta' => [],
         ], 'layouts/site');
+    }
+
+    /** Fragmento HTML com a próxima "página" do feed (rolagem infinita). */
+    public function feed(): void
+    {
+        $page = max(1, min(50, (int) \App\Core\Request::query('pagina')));
+        $pages = ContentRepo::pages();
+        $items = $pages->feed(self::FEED_PER_PAGE, ($page - 1) * self::FEED_PER_PAGE);
+        header('Content-Type: text/html; charset=utf-8');
+        header('X-Feed-More: ' . ($pages->feedCount() > $page * self::FEED_PER_PAGE ? '1' : '0'));
+        foreach ($items as $card) {
+            require APP_PATH . '/Views/partials/feed_card.php';
+        }
     }
 
     public function blog(): void

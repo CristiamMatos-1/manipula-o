@@ -15,6 +15,6 @@ Options -Indexes
 </IfModule>
 
 # Impede a leitura de arquivos sensíveis
-<FilesMatch "^(\.env|\.gitignore|config\.php|.*\.(sql|md|lock|log))$">
+<FilesMatch "^(\.env|\.gitignore|config\.php|\.user\.ini|.*\.(sql|md|lock|log|version))$">
   Require all denied
 </FilesMatch>

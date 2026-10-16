@@ -56,6 +56,7 @@ final class Installer
         if (@file_put_contents(ROOT . '/storage/installed.lock', date('c')) === false) {
             throw new \RuntimeException('Não foi possível gravar storage/installed.lock. Verifique a permissão de escrita da pasta storage/.');
         }
+        Migrator::markCurrent();
         $log[] = 'Configuração gravada em config/config.php.';
         return $log;
     }
@@ -80,6 +81,7 @@ final class Installer
             "## Quais dados coletamos\n\nEste site utiliza apenas cookies essenciais ao funcionamento e, mediante seu consentimento, cookies de medição. Dados enviados por WhatsApp ou e-mail são usados somente para atendê-lo.\n\n## Seus direitos\n\nVocê pode solicitar acesso, correção ou exclusão de seus dados a qualquer momento pelo e-mail de contato informado no rodapé.\n\n## Revise este texto\n\nEste é um texto-modelo. Peça à assessoria jurídica para revisá-lo antes da publicação definitiva.",
             'PUBLISHED', $now, $authorId,
         ]);
+        $pdo->exec("UPDATE pages SET show_on_home = 0 WHERE slug = 'politica-de-privacidade' AND created_at >= NOW() - INTERVAL 1 MINUTE");
         $post->execute([
             'Bem-vindo ao novo site da Drogacare', 'bem-vindo-ao-novo-site-da-drogacare',
             'Conheça nosso novo canal e saiba como a manipulação personalizada cuida de você.',
