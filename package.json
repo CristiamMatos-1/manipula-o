@@ -1,0 +1,12 @@
+{
+  "name": "drogacare-portal",
+  "private": true,
+  "description": "Ferramenta de build do CSS (Tailwind). O site em si é PHP e NÃO precisa de Node em produção.",
+  "scripts": {
+    "build:css": "tailwindcss -c tailwind.config.js -i assets-src/input.css -o public/assets/css/app.css --minify",
+    "watch:css": "tailwindcss -c tailwind.config.js -i assets-src/input.css -o public/assets/css/app.css --watch"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.17"
+  }
+}
