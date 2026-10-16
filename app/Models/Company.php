@@ -9,7 +9,7 @@ use App\Core\Database;
 final class Company
 {
     public const FIELDS = [
-        'name', 'logo_url', 'logo_display', 'tagline', 'founded_year', 'pharmacist_name', 'pharmacist_crf', 'pharmacist_photo_url',
+        'name', 'logo_url', 'logo_display', 'tagline', 'legal_name', 'cnpj', 'legal_extra', 'founded_year', 'pharmacist_name', 'pharmacist_crf', 'pharmacist_photo_url',
         'phone', 'whatsapp', 'email', 'address', 'maps_embed_url',
         'hero_video_url', 'youtube_url', 'instagram_url', 'facebook_url',
     ];

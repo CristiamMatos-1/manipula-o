@@ -27,9 +27,17 @@ final class CompanyController extends AdminController
         $before = Company::get();
         $v['logo_display'] = $v['logo_display'] === '' ? ($before['logo_display'] ?? 'both') : $v['logo_display'];
         if (!in_array($v['logo_display'], ['both', 'image', 'name'], true)) $e['logo_display'] = 'Opção inválida.';
-        $max = ['name' => 100, 'tagline' => 120, 'pharmacist_name' => 120, 'pharmacist_crf' => 40, 'phone' => 40, 'email' => 120, 'address' => 250];
+        $max = ['name' => 100, 'tagline' => 120, 'legal_name' => 150, 'legal_extra' => 300, 'pharmacist_name' => 120, 'pharmacist_crf' => 40, 'phone' => 40, 'email' => 120, 'address' => 250];
         foreach ($max as $f => $m) {
             if (mb_strlen($v[$f]) > $m) $e[$f] = "Máximo de {$m} caracteres.";
+        }
+        if ($v['cnpj'] !== '') {
+            $digits = preg_replace('/\D/', '', $v['cnpj']) ?? '';
+            if (!self::validCnpj($digits)) {
+                $e['cnpj'] = 'CNPJ inválido. Confira os 14 números.';
+            } else {
+                $v['cnpj'] = vsprintf('%s%s.%s%s%s.%s%s%s/%s%s%s%s-%s%s', str_split($digits));
+            }
         }
         if (mb_strlen($v['name']) < 2) $e['name'] = 'Informe o nome.';
         if (!ctype_digit($v['founded_year']) || (int) $v['founded_year'] < 1800 || (int) $v['founded_year'] > (int) date('Y')) $e['founded_year'] = 'Ano inválido.';
@@ -67,5 +75,25 @@ final class CompanyController extends AdminController
         $changed = array_keys(array_filter($v, static fn ($val, $k) => (string) $before[$k] !== (string) $val, ARRAY_FILTER_USE_BOTH));
         Audit::log($user, 'COMPANY_UPDATE', 'CompanyInfo', '1', $changed ? 'Campos alterados: ' . implode(', ', $changed) : 'Sem alterações');
         $this->flashRedirect('success', 'Dados da empresa salvos e publicados no site.', '/admin/empresa');
+    }
+
+    private static function validCnpj(string $d): bool
+    {
+        if (strlen($d) !== 14 || preg_match('/^(\d)\1{13}$/', $d)) {
+            return false;
+        }
+        foreach ([12, 13] as $len) {
+            $sum = 0;
+            $weight = $len - 7;
+            for ($i = 0; $i < $len; $i++) {
+                $sum += (int) $d[$i] * $weight;
+                $weight = $weight === 2 ? 9 : $weight - 1;
+            }
+            $dv = $sum % 11 < 2 ? 0 : 11 - $sum % 11;
+            if ((int) $d[$len] !== $dv) {
+                return false;
+            }
+        }
+        return true;
     }
 }

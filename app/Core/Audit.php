@@ -15,7 +15,7 @@ final class Audit
         'POST_UPDATE_PUBLISHED' => 'Artigo publicado atualizado', 'POST_UNPUBLISH' => 'Artigo despublicado', 'POST_DELETE' => 'Artigo excluído',
         'PAGE_CREATE' => 'Página criada', 'PAGE_UPDATE' => 'Página editada', 'PAGE_PUBLISH' => 'Página publicada',
         'PAGE_UPDATE_PUBLISHED' => 'Página publicada atualizada', 'PAGE_UNPUBLISH' => 'Página despublicada', 'PAGE_DELETE' => 'Página excluída',
-        'COMPANY_UPDATE' => 'Dados da empresa editados',
+        'COMPANY_UPDATE' => 'Dados da empresa editados', 'SITE_UPDATE' => 'Página inicial editada', 'SITE_RESET' => 'Textos da página inicial restaurados',
     ];
 
     public static function label(string $action): string

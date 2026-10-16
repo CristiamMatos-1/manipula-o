@@ -23,8 +23,8 @@ require __DIR__ . '/_header.php';
       <?= field('Título', 'title', ['value' => $val('title'), 'error' => $errors['title'] ?? null, 'attrs' => 'required maxlength="150"']) ?>
       <?= field('Endereço (slug)', 'slug', ['value' => $val('slug'), 'error' => $errors['slug'] ?? null, 'attrs' => 'maxlength="80"', 'hint' => 'Deixe em branco para gerar automaticamente a partir do título. Ex.: cuidados-com-a-pele']) ?>
       <?= field('Resumo', 'excerpt', ['type' => 'textarea', 'rows' => 2, 'value' => $val('excerpt'), 'error' => $errors['excerpt'] ?? null, 'attrs' => 'maxlength="300"', 'hint' => 'Aparece nas listagens e ao compartilhar.']) ?>
-      <?= image_field($c['kind'] === 'page' ? 'Imagem da página (opcional)' : 'Imagem de capa (opcional)', 'cover_url', $item['cover_url'] ?? null, $errors['cover_url'] ?? null,
-          $c['kind'] === 'page' ? 'Aparece no cartão da página inicial e no topo da página. JPG, PNG, WebP ou GIF.' : 'Aparece nas listagens e no topo do artigo. JPG, PNG, WebP ou GIF.') ?>
+      <?= image_field($c['kind'] === 'page' ? 'Imagem da página (opcional)' : 'Imagem do artigo (opcional)', 'cover_url', $item['cover_url'] ?? null, $errors['cover_url'] ?? null,
+          $c['kind'] === 'page' ? 'Aparece no cartão da página inicial e no topo da página. JPG, PNG, WebP ou GIF.' : 'Aparece nas listagens e no topo do artigo. JPG, PNG, WebP ou GIF. Se não anexar, será usada a logo da empresa como imagem padrão.') ?>
       <?php if ($c['kind'] === 'page'): ?>
         <?php $onHome = isset($v['show_on_home']) ? $v['show_on_home'] === '1' : (bool) ($item['show_on_home'] ?? 1); ?>
         <div>

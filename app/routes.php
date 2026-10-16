@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-use App\Controllers\Admin\{AuditController, AuthController, CompanyController, DashboardController, PagesController, PostsController, UsersController};
+use App\Controllers\Admin\{AuditController, AuthController, CompanyController, DashboardController, PagesController, PostsController, SiteSettingsController, UsersController};
 use App\Controllers\{InstallController, SiteController};
 use App\Core\Router;
 
@@ -49,6 +49,9 @@ return static function (Router $r, bool $installed): void {
 
     $r->get('/admin/empresa', [CompanyController::class, 'edit']);
     $r->post('/admin/empresa', [CompanyController::class, 'update']);
+
+    $r->get('/admin/pagina-inicial', [SiteSettingsController::class, 'edit']);
+    $r->post('/admin/pagina-inicial', [SiteSettingsController::class, 'update']);
 
     $r->get('/admin/usuarios', [UsersController::class, 'index']);
     $r->get('/admin/usuarios/novo', [UsersController::class, 'create']);

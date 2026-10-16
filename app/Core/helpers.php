@@ -209,3 +209,44 @@ function image_field(string $label, string $column, ?string $current, ?string $e
     }
     return $html . '</div>';
 }
+
+/** Texto editável da página inicial (variáveis já substituídas). Escape com e() ao imprimir. */
+function site_text(string $key): string
+{
+    return \App\Models\Settings::get($key);
+}
+
+/** Converte o link informado no painel em href seguro: "#x", "/caminho" (relativo ao site) ou http(s). */
+function link_href(?string $value): ?string
+{
+    $value = trim((string) $value);
+    if ($value === '') {
+        return null;
+    }
+    if (str_starts_with($value, '#')) {
+        return $value;
+    }
+    if (str_starts_with($value, '/') && !str_starts_with($value, '//')) {
+        return url($value);
+    }
+    return safe_url($value);
+}
+
+/** Imagem padrão de artigos sem capa: logo enviada da empresa ou o ícone padrão. */
+function default_cover(): string
+{
+    try {
+        $logo = Config::installed() ? safe_image_url((string) (\App\Models\Company::get()['logo_url'] ?? '')) : null;
+    } catch (\Throwable) {
+        $logo = null;
+    }
+    return $logo ?? asset('img/logo.svg');
+}
+
+/** URL absoluta a partir de um caminho que já inclui a subpasta (ex.: saída de static_url/safe_image_url). */
+function origin_url(string $path): string
+{
+    $p = parse_url(Config::appUrl()) ?: [];
+    $origin = ($p['scheme'] ?? 'https') . '://' . ($p['host'] ?? 'localhost') . (isset($p['port']) ? ':' . $p['port'] : '');
+    return $origin . '/' . ltrim($path, '/');
+}

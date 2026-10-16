@@ -4,6 +4,7 @@ $nav = [
     ['/admin', 'Dashboard', 'layout-dashboard', true],
     ['/admin/posts', 'Artigos', 'newspaper', true],
     ['/admin/paginas', 'Páginas', 'file-text', true],
+    ['/admin/pagina-inicial', 'Página inicial', 'file-pen', true],
     ['/admin/empresa', 'Dados da empresa', 'building-complex', true],
     ['/admin/usuarios', 'Usuários', 'users', Rbac::can($user['role'], 'users:manage')],
     ['/admin/auditoria', 'Auditoria', 'scroll-text', Rbac::can($user['role'], 'audit:view')],

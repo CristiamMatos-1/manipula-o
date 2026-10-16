@@ -85,7 +85,8 @@ Tabelas em `database/schema.sql` (idempotente):
 - **pages**/**posts** `cover_url`: imagem enviada; **pages** também tem `show_on_home` (entra no feed da home).
 - **posts** — `title`, `slug` único, `excerpt`, `content`, `cover_url`, `meta_title`, `meta_description`, `status ENUM('DRAFT','PUBLISHED')`, `published_at`, `author_id`.
 - **pages** — igual a `posts` sem capa/resumo.
-- **company_info** — singleton (inclui `logo_url` e `logo_display` ENUM `both|image|name`) (`id = 1` com `CHECK`): nome, slogan, `founded_year` (1991), farmacêutico (nome, CRF, foto), telefone, WhatsApp, e-mail, endereço, `maps_embed_url`, `hero_video_url`, `youtube_url`, `instagram_url`, `facebook_url`.
+- **site_settings** — `skey` (PK), `svalue`, `updated_at`: textos/imagem do banner da página inicial.
+- **company_info** — singleton (inclui `legal_name`, `cnpj`, `legal_extra`, `logo_url` e `logo_display` ENUM `both|image|name`) (`id = 1` com `CHECK`): nome, slogan, `founded_year` (1991), farmacêutico (nome, CRF, foto), telefone, WhatsApp, e-mail, endereço, `maps_embed_url`, `hero_video_url`, `youtube_url`, `instagram_url`, `facebook_url`.
 
 Todas as consultas usam prepared statements; nomes de tabela nunca vêm do usuário (`ContentRepo` fixa os nomes).
 
@@ -98,6 +99,13 @@ Imagens antigas são apagadas ao trocar/remover. `public/.user.ini` (e na raiz) 
 ### Feed da página inicial
 Páginas `PUBLISHED` com `show_on_home = 1` aparecem na seção `#novidades` da home, **depois do Contato**, `ORDER BY published_at DESC, id DESC`, 6 por vez.
 `GET /feed?pagina=N` devolve o fragmento HTML (rolagem infinita via `IntersectionObserver`); sem JS, `/?pagina=N` renderiza N×6 cartões.
+
+### Página inicial editável
+`App\Models\Settings` (tabela `site_settings`, chave/valor): `DEFS` lista cada campo (tipo, padrão, limite, rótulo) e `GROUPS` organiza o formulário `/admin/pagina-inicial`.
+Sem linha salva vale o padrão do código; `{empresa}`, `{slogan}`, `{ano}`, `{anos}` são substituídos em `Settings::get()`. Views usam `site_text('chave')` (sempre escapado com `e()`).
+Links de botões/banner aceitam `https://`, `/caminho` (relativo ao site) ou `#âncora` e passam por `link_href()`; qualquer outro esquema (ex.: `javascript:`) é recusado.
+O banner (`partials/banner.php`) só renderiza se houver imagem, título ou texto (`Settings::hasBanner()`). Dados legais (razão social, CNPJ validado por dígitos verificadores, extras) ficam em `company_info` e vão ao rodapé.
+Artigos sem imagem usam `default_cover()` (logo enviada ou `logo.svg`); o `og:image` também cai na logo enviada.
 
 ### Migrações
 `App\Core\Migrator` (versão em `storage/schema.version`) adiciona colunas novas em bancos já instalados no primeiro acesso após atualizar.
@@ -112,7 +120,7 @@ Fonte única: `App\Core\Rbac::PERMISSIONS`.
 | `content:view` | sim | sim | sim |
 | `content:write` / `publish` / `delete` | sim | sim | não |
 | `company:view` | sim | sim | sim |
-| `company:edit` | sim | sim | não |
+| `company:edit` (Empresa e Página inicial) | sim | sim | não |
 | `users:manage` | sim | **não** | não |
 | `audit:view` | sim | não | não |
 
@@ -152,7 +160,7 @@ O menu esconde itens, mas a autorização real é sempre no servidor (testado co
 
 Público: `/`, `/feed?pagina=N`, `/blog`, `/blog/{slug}`, `/p/{slug}`, `/sitemap.xml`, `/robots.txt`.
 Autenticação: `/admin/login`, `/admin/logout`, `/admin/esqueci-senha`, `/admin/redefinir-senha?token=`, `/admin/alterar-senha`, `/admin/acesso-negado`.
-Painel: `/admin`, `/admin/posts[/novo|/{id}|/{id}/excluir]`, `/admin/paginas[...]`, `/admin/empresa`, `/admin/usuarios[...]`, `/admin/auditoria`.
+Painel: `/admin`, `/admin/posts[/novo|/{id}|/{id}/excluir]`, `/admin/paginas[...]`, `/admin/pagina-inicial`, `/admin/empresa`, `/admin/usuarios[...]`, `/admin/auditoria`.
 Instalação (somente enquanto não instalado): `/install.php` (arquivo físico na raiz, funciona sem `mod_rewrite`) e `/install`.
 
 Artigos/páginas só são públicos com `status = 'PUBLISHED'`; rascunhos retornam 404 ao público.

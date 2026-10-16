@@ -36,6 +36,13 @@
     });
   });
 
+  // Confirmação em botões de envio (ex.: restaurar padrão)
+  $$('[data-confirm-click]').forEach(function (b) {
+    b.addEventListener('click', function (e) {
+      if (!window.confirm(b.getAttribute('data-confirm-click'))) e.preventDefault();
+    });
+  });
+
   // Evita envio duplicado: desabilita o botão após o envio
   $$('form').forEach(function (f) {
     f.addEventListener('submit', function (e) {

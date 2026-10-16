@@ -11,7 +11,11 @@ $btn = 'inline-flex min-h-[44px] items-center gap-2 rounded-lg px-4 py-2 text-sm
       <h1 class="mt-1 text-3xl font-extrabold leading-tight sm:text-4xl"><?= e($item['title']) ?></h1>
       <?php if ($item['excerpt']): ?><p class="mt-3 text-lg text-brand-navy/70"><?= e($item['excerpt']) ?></p><?php endif ?>
     </header>
-    <?php if ($cover): ?><img src="<?= e($cover) ?>" alt="" class="mt-6 aspect-video w-full rounded-2xl object-cover"><?php endif ?>
+    <?php if ($cover): ?>
+      <img src="<?= e($cover) ?>" alt="" class="mt-6 aspect-video w-full rounded-2xl object-cover">
+    <?php elseif ($isPost): ?>
+      <div class="mt-6 flex aspect-video w-full items-center justify-center rounded-2xl bg-brand-mint/30 p-8"><img src="<?= e(default_cover()) ?>" alt="" class="max-h-full max-w-[60%] object-contain" data-default-cover></div>
+    <?php endif ?>
     <div class="mt-8"><?= \App\Core\Content::render($item['content']) ?></div>
   </article>
 

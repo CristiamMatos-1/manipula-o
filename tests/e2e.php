@@ -348,6 +348,106 @@ for ($i = 0; $i < 5; $i++) {
 [$s, $b] = $bf->post('/admin/login', '/admin/login', ['email' => 'visualizador@teste.com', 'password' => $pwViewer2]);
 check('Após 5 falhas a conta bloqueia (mesmo com senha certa)', $s === 422 && str_contains($b, 'Muitas tentativas'));
 
+echo "== Página inicial editável, banner, rodapé legal e imagem padrão de artigos ==\n";
+$formFields = static function (string $html): array {
+    $out = [];
+    if (preg_match_all('#<input id="[^"]*" name="([^"]+)" type="text" value="([^"]*)"#', $html, $mm, PREG_SET_ORDER)) {
+        foreach ($mm as $m) {
+            $out[$m[1]] = html_entity_decode($m[2], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        }
+    }
+    if (preg_match_all('#<textarea id="[^"]*" name="([^"]+)"[^>]*>(.*?)</textarea>#s', $html, $mm, PREG_SET_ORDER)) {
+        foreach ($mm as $m) {
+            $out[$m[1]] = html_entity_decode($m[2], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        }
+    }
+    return $out;
+};
+$save = static function (array $over, array $files = []) use ($admin, $formFields) {
+    [, $page] = $admin->get('/admin/pagina-inicial');
+    return $admin->postFiles('/admin/pagina-inicial', '/admin/pagina-inicial', $over + $formFields($page), $files);
+};
+[, $b] = $anon->get('/');
+check('Sem nada no banner, ele fica oculto na home', !str_contains($b, 'aria-label="Destaque"'));
+[$s, $b] = $admin->get('/admin/pagina-inicial');
+check('Tela "Página inicial" abre e mostra banner oculto', $s === 200 && str_contains($b, 'Banner oculto') && str_contains($b, 'name="hero_title"') && str_contains($b, 'name="about_text"'));
+[$s, $b] = $save(['banner_link_url' => 'javascript:alert(1)']);
+check('Link malicioso no banner é rejeitado', $s === 422);
+[$s] = $save(['banner_title' => 'Promoção de verão', 'banner_text' => 'Descontos em dermocosméticos', 'banner_link_url' => '/blog']);
+[, $b] = $anon->get('/');
+check('Banner só com texto aparece (e com link)', $s === 302 && str_contains($b, 'aria-label="Destaque"') && str_contains($b, 'Promoção de verão') && str_contains($b, 'Descontos em dermocosméticos') && preg_match('#href="[^"]*/blog" class="btn mt-4#', $b) === 1);
+check('Banner vem antes do Hero', strpos($b, 'Promoção de verão') < strpos($b, 'Cuidado sob medida,'));
+[$s] = $save([], ['banner_image_file' => [$imgA, 'banner.png', 'image/png']]);
+[, $b] = $anon->get('/');
+preg_match('#aria-label="Destaque".*?<img src="([^"]*/uploads/[^"]+)"#s', $b, $bm);
+check('Banner com imagem enviada', $s === 302 && !empty($bm[1]));
+$bannerFile = $disk($bm[1] ?? '');
+clearstatcache();
+check('Imagem do banner gravada em disco', is_file($bannerFile));
+$save(['banner_title' => '', 'banner_text' => '', 'banner_link_url' => '', 'banner_link_label' => '', 'banner_image_remove' => '1']);
+[, $b] = $anon->get('/');
+clearstatcache();
+check('Esvaziar o banner o oculta de novo e apaga a imagem', !str_contains($b, 'aria-label="Destaque"') && !is_file($bannerFile));
+
+[$s] = $save([
+    'hero_badge' => 'Tradição desde {ano}', 'hero_title' => 'Saúde com carinho,', 'hero_highlight' => 'sempre.', 'hero_text' => 'Texto novo da {empresa} para o topo.',
+    'hero_btn1_label' => 'Peça agora', 'hero_btn1_url' => 'https://wa.me/5511999999999', 'hero_btn2_label' => '',
+    'about_label' => 'Quem somos', 'about_title' => 'Nossa história', 'about_counter_text' => 'anos cuidando de você.',
+    'about_text' => 'Texto sobre nós totalmente novo.', 'about_f1_title' => 'Destaque Um', 'about_f1_text' => 'Detalhe Um',
+    'pharmacist_title' => 'Nossa farmacêutica', 'contact_title' => 'Fale com a gente', 'contact_whatsapp_label' => 'Chame no Zap',
+    'feed_title' => 'Mural', 'articles_title' => 'Blog da farmácia', 'footer_text' => 'Seg a Sex, 8h às 18h',
+    'home_seo_title' => 'Título SEO Teste', 'home_seo_description' => 'Descrição SEO Teste',
+]);
+check('Salva textos da página inicial', $s === 302);
+[, $b] = $anon->get('/');
+check('Hero editável (etiqueta com {ano}, título, destaque, texto com {empresa})', str_contains($b, 'Tradição desde 1991') && str_contains($b, 'Saúde com carinho,') && str_contains($b, '>sempre.<') && str_contains($b, 'Texto novo da Drogacare para o topo.'));
+check('Botão 1 editado e botão 2 oculto (texto vazio)', str_contains($b, 'Peça agora') && str_contains($b, 'href="https://wa.me/5511999999999"') && !str_contains($b, 'Conheça a Drogacare'));
+check('Sobre nós editável (etiqueta, título, contador, texto, destaque)', str_contains($b, 'Quem somos') && str_contains($b, 'Nossa história') && str_contains($b, 'anos cuidando de você.') && str_contains($b, 'Texto sobre nós totalmente novo.') && str_contains($b, 'Destaque Um') && str_contains($b, 'Detalhe Um'));
+check('Cartão do farmacêutico, contato, mural e artigos editáveis', str_contains($b, 'Nossa farmacêutica') && str_contains($b, 'Fale com a gente') && str_contains($b, 'Chame no Zap') && str_contains($b, 'Mural') && str_contains($b, 'Blog da farmácia'));
+check('Texto do rodapé e SEO da home editáveis', str_contains($b, 'Seg a Sex, 8h às 18h') && str_contains($b, '<title>Título SEO Teste</title>') && str_contains($b, 'content="Descrição SEO Teste"'));
+check('Texto antigo não aparece mais', !str_contains($b, 'Tradição e confiança desde'));
+[, $b] = $admin->get('/admin');
+$admin->postFiles('/admin/pagina-inicial', '/admin/pagina-inicial', ['reset' => '1'], []);
+[, $b] = $anon->get('/');
+check('Restaurar padrão devolve os textos originais', str_contains($b, 'Tradição e confiança desde 1991') && str_contains($b, 'Conheça a Drogacare') && str_contains($b, 'Cuidado sob medida,') && !str_contains($b, 'Mural'));
+
+[$s, $b] = $admin->postFiles('/admin/empresa', '/admin/empresa', ['cnpj' => '11.111.111/1111-11', 'legal_name' => 'Drogacare Ltda'] + $companyBase + ['logo_display' => 'both'], []);
+check('CNPJ inválido é rejeitado', $s === 422 && str_contains($b, 'CNPJ inválido'));
+[, $b] = $anon->get('/');
+check('Sem dados legais, rodapé não mostra Razão social/CNPJ', !str_contains($b, 'Razão social:') && !str_contains($b, 'CNPJ:'));
+[$s] = $admin->postFiles('/admin/empresa', '/admin/empresa', ['cnpj' => '11222333000181', 'legal_name' => 'Drogacare Farmácia de Manipulação Ltda', 'legal_extra' => "Inscrição Estadual 123.456\nAFE ANVISA 7.654.321"] + $companyBase + ['logo_display' => 'both'], []);
+[, $b] = $anon->get('/');
+$footer = preg_match('#<footer.*?</footer>#s', $b, $fm2) ? $fm2[0] : '';
+check('Rodapé mostra razão social, CNPJ formatado e informações legais', $s === 302 && str_contains($footer, 'Razão social:') && str_contains($footer, 'Drogacare Farmácia de Manipulação Ltda') && str_contains($footer, 'CNPJ:') && str_contains($footer, '11.222.333/0001-81') && str_contains($footer, 'AFE ANVISA 7.654.321'));
+[$s, $pg] = $admin->get('/admin/empresa');
+check('Tela da empresa mostra os campos legais preenchidos', str_contains($pg, '11.222.333/0001-81') && str_contains($pg, 'name="legal_name"'));
+
+[, $b] = $anon->get('/blog');
+check('Artigo sem imagem usa a logo padrão (ícone) na lista', str_contains($b, 'data-default-cover') && preg_match('#data-default-cover#', $b) === 1 && preg_match('#<img src="[^"]*logo\.svg[^"]*"[^>]*data-default-cover#', $b) === 1);
+[, $b] = $anon->get('/blog/teste-de-publicacao');
+check('Página do artigo sem imagem mostra a logo padrão', str_contains($b, 'data-default-cover'));
+$admin->postFiles('/admin/empresa', '/admin/empresa', $companyBase + ['logo_display' => 'both'], ['logo_url_file' => [$imgA, 'logo.png', 'image/png']]);
+[, $b] = $anon->get('/blog');
+check('Com logo enviada, ela vira a imagem padrão dos artigos', preg_match('#<img src="[^"]*/uploads/[^"]+\.png"[^>]*data-default-cover#', $b) === 1);
+[, $b] = $anon->get('/blog/teste-de-publicacao');
+check('Logo enviada também é o og:image padrão', preg_match('#og:image" content="https?://[^"]*/uploads/[^"]+\.png#', $b) === 1);
+[$s, , $loc] = $admin->postFiles('/admin/posts/novo', '/admin/posts/novo', ['title' => 'Artigo com Foto', 'content' => 'Texto com foto', 'intent' => 'publish'], ['cover_url_file' => [$imgB, 'capa.png', 'image/png']]);
+[, $b] = $anon->get('/blog');
+preg_match('#/blog/artigo-com-foto.*?</article>#s', $b, $card);
+check('Artigo com imagem própria NÃO usa a logo padrão', $s === 302 && isset($card[0]) && str_contains($card[0], '/uploads/') && !str_contains($card[0], 'data-default-cover'));
+$admin->postFiles('/admin/empresa', '/admin/empresa', $companyBase + ['logo_display' => 'both', 'logo_url_remove' => '1'], []);
+
+[$s] = $editor->get('/admin/pagina-inicial');
+check('Editor pode abrir/editar a página inicial', $s === 200);
+[$s] = $viewer->get('/admin/pagina-inicial');
+check('Visualizador só lê a página inicial', $s === 200);
+[$s, , $loc] = $viewer->postFiles('/admin/pagina-inicial', '/admin/pagina-inicial', ['hero_title' => 'Invasão'], []);
+[, $b] = $anon->get('/');
+check('Visualizador NÃO consegue salvar a página inicial', $s === 302 && path($loc) === '/admin/acesso-negado' && !str_contains($b, 'Invasão'));
+[$s, , $loc] = $anon->get('/admin/pagina-inicial');
+check('Anônimo é mandado ao login na página inicial do painel', $s === 302 && path($loc) === '/admin/login');
+
+
 echo "== Auditoria ==\n";
 [$s, $b] = $admin->get('/admin/auditoria');
 $aud = static function (string $q) use ($admin): string {

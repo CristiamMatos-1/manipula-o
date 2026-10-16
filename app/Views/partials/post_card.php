@@ -4,7 +4,7 @@
     <?php if ($cover): ?>
       <img src="<?= e($cover) ?>" alt="" loading="lazy" class="aspect-video w-full object-cover">
     <?php else: ?>
-      <div class="flex aspect-video w-full items-center justify-center bg-gradient-to-br from-brand-blue to-brand-sky"><img src="<?= e(asset('img/logo.svg')) ?>" alt="" class="h-14 w-14 opacity-90"></div>
+      <div class="flex aspect-video w-full items-center justify-center bg-brand-mint/30 p-6"><img src="<?= e(default_cover()) ?>" alt="" loading="lazy" class="max-h-full max-w-[70%] object-contain" data-default-cover></div>
     <?php endif ?>
     <div class="p-5">
       <time class="text-xs font-semibold text-brand-blue" datetime="<?= e(date('c', strtotime((string) $post['published_at']))) ?>"><?= e(format_date($post['published_at'])) ?></time>

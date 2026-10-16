@@ -86,6 +86,21 @@ php bin/install.php --db=NOME_DO_BANCO --user=USUARIO --pass=SENHA \
 4. A página vira um cartão (imagem + título + resumo) na seção **Novidades**, que fica **logo depois do Contato**. As páginas mais novas aparecem primeiro e a página inicial vai crescendo com a rolagem (carrega mais cartões automaticamente). Ao clicar no cartão, o visitante abre a página completa.
 5. Para tirar da página inicial sem apagar a página, desmarque "Mostrar na página inicial" ou despublique.
 
+**Editar a página inicial (textos, banner, sobre nós)**
+Painel → **Página inicial**. Tudo o que aparece na página inicial é editável:
+- **Banner de destaque**: imagem, título, texto e botão com link. Ele **só aparece se você preencher algo**; para ocultar, remova a imagem e esvazie os textos.
+- **Topo (Hero)**: etiqueta, título, destaque verde, texto e os dois botões (deixe o texto de um botão vazio para ocultá-lo). O vídeo continua em *Empresa*.
+- **Sobre nós** e **Conheça a empresa**: título, contador de anos, texto, os três destaques e o título do cartão do farmacêutico.
+- Títulos das seções de artigos, contato e novidades, mensagem do WhatsApp, texto livre do rodapé e título/descrição para o Google.
+- Nos textos use `{empresa}`, `{slogan}`, `{ano}` e `{anos}`: são trocados pelos dados da empresa automaticamente.
+- **Restaurar textos padrão** desfaz todas as edições de texto (não mexe no banner).
+
+**Dados legais no rodapé**
+Painel → **Empresa** → **Dados legais**: razão social, CNPJ (validado e formatado) e outras informações (inscrição estadual, AFE/ANVISA, licença...). Só aparecem no rodapé os campos preenchidos.
+
+**Artigos: imagem e imagem padrão**
+Ao criar um artigo você pode anexar uma imagem. **Se não anexar, o site usa a logo da empresa** (a enviada em Empresa ou o ícone padrão) na lista, na página do artigo e ao compartilhar.
+
 **Logo e nome da empresa**
 Painel → **Empresa** → **Identidade**: edite o nome, anexe a imagem da logo e escolha o que exibir no topo, rodapé e painel:
 *Imagem e nome*, *Somente a imagem* ou *Somente o nome*. A foto do farmacêutico também é enviada por anexo.

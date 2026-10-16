@@ -1,11 +1,13 @@
 <?php
 $c = $company ?? [];
 $meta = $meta ?? [];
-$fullTitle = !empty($meta['title']) ? $meta['title'] . ' | Drogacare' : 'Drogacare | Farmácia de Manipulação desde 1991';
-$desc = $meta['description'] ?? 'Drogacare: farmácia de manipulação com mais de três décadas de tradição, qualidade e atendimento farmacêutico especializado.';
+$siteName = (string) ($c['name'] ?? 'Drogacare');
+$fullTitle = !empty($meta['title']) ? $meta['title'] . ' | ' . $siteName : site_text('home_seo_title');
+$desc = !empty($meta['description']) ? $meta['description'] : site_text('home_seo_description');
 $canonical = abs_url($meta['canonical'] ?? '/');
-$ogImage = !empty($meta['image']) ? (preg_match('#^https?://#', $meta['image']) ? $meta['image'] : abs_url($meta['image'])) : null;
-$wa = \App\Core\Embed::whatsapp($c['whatsapp'] ?? '', 'Olá! Gostaria de falar com a Drogacare.');
+$ogSource = !empty($meta['image']) ? $meta['image'] : safe_image_url((string) ($c['logo_url'] ?? ''));
+$ogImage = $ogSource ? (preg_match('#^https?://#', $ogSource) ? $ogSource : origin_url($ogSource)) : null;
+$wa = \App\Core\Embed::whatsapp($c['whatsapp'] ?? '', site_text('whatsapp_message'));
 $nav = [['/#sobre', 'Sobre nós'], ['/blog', 'Artigos'], ['/#contato', 'Contato']];
 ?><!doctype html>
 <html lang="pt-BR">
@@ -17,10 +19,10 @@ $nav = [['/#sobre', 'Sobre nós'], ['/blog', 'Artigos'], ['/#contato', 'Contato'
   <meta name="description" content="<?= e($desc) ?>">
   <?php if (!empty($meta['keywords'])): ?><meta name="keywords" content="<?= e($meta['keywords']) ?>"><?php endif ?>
   <link rel="canonical" href="<?= e($canonical) ?>">
-  <meta property="og:site_name" content="Drogacare">
+  <meta property="og:site_name" content="<?= e($siteName) ?>">
   <meta property="og:locale" content="pt_BR">
   <meta property="og:type" content="<?= e($meta['type'] ?? 'website') ?>">
-  <meta property="og:title" content="<?= e($meta['title'] ?? 'Drogacare | Farmácia de Manipulação') ?>">
+  <meta property="og:title" content="<?= e($meta['title'] ?? $fullTitle) ?>">
   <meta property="og:description" content="<?= e($desc) ?>">
   <meta property="og:url" content="<?= e($canonical) ?>">
   <?php if ($ogImage): ?><meta property="og:image" content="<?= e($ogImage) ?>"><?php endif ?>
@@ -65,6 +67,7 @@ $nav = [['/#sobre', 'Sobre nós'], ['/blog', 'Artigos'], ['/#contato', 'Contato'
     <div>
       <p><?= brand_mark(['img' => 'h-10', 'text' => 'text-xl font-extrabold', 'onDark' => true]) ?></p>
       <p class="mt-2 text-sm text-brand-mint"><?= e($c['tagline'] ?? '') ?> · desde <?= e($c['founded_year'] ?? 1991) ?></p>
+      <?php if (trim(site_text('footer_text')) !== ''): ?><p class="mt-3 whitespace-pre-line text-sm text-white/80"><?= e(site_text('footer_text')) ?></p><?php endif ?>
       <ul class="mt-4 flex gap-3">
         <?php foreach (['instagram_url' => ['instagram', 'Instagram'], 'facebook_url' => ['facebook', 'Facebook'], 'youtube_url' => ['youtube', 'YouTube']] as $key => [$ic, $label]): ?>
           <?php if ($href = safe_url($c[$key] ?? '')): ?>
@@ -84,11 +87,24 @@ $nav = [['/#sobre', 'Sobre nós'], ['/blog', 'Artigos'], ['/#contato', 'Contato'
       <li><button type="button" class="hover:underline" data-cookie-prefs>Preferências de cookies</button></li>
     </ul>
   </div>
-  <div class="border-t border-white/10 py-4 text-center text-xs text-white/60">© <?= date('Y') ?> <?= e($c['name'] ?? 'Drogacare') ?>. Todos os direitos reservados.</div>
+  <?php
+    $legal = [];
+    if (!empty($c['legal_name'])) $legal[] = '<span><strong class="font-semibold text-white/80">Razão social:</strong> ' . e($c['legal_name']) . '</span>';
+    if (!empty($c['cnpj'])) $legal[] = '<span><strong class="font-semibold text-white/80">CNPJ:</strong> ' . e($c['cnpj']) . '</span>';
+  ?>
+  <div class="border-t border-white/10 py-4 text-center text-xs text-white/60">
+    <?php if ($legal || !empty($c['legal_extra'])): ?>
+      <div class="container mb-2 space-y-1">
+        <?php if ($legal): ?><p class="flex flex-wrap justify-center gap-x-4 gap-y-1"><?= implode('', $legal) ?></p><?php endif ?>
+        <?php if (!empty($c['legal_extra'])): ?><p class="whitespace-pre-line"><?= e($c['legal_extra']) ?></p><?php endif ?>
+      </div>
+    <?php endif ?>
+    © <?= date('Y') ?> <?= e($c['name'] ?? 'Drogacare') ?>. Todos os direitos reservados.
+  </div>
 </footer>
 
 <?php if ($wa): ?>
-<a href="<?= e($wa) ?>" target="_blank" rel="noopener noreferrer" aria-label="Falar com a Drogacare pelo WhatsApp"
+<a href="<?= e($wa) ?>" target="_blank" rel="noopener noreferrer" aria-label="Falar com a <?= e($siteName) ?> pelo WhatsApp"
    class="fixed bottom-4 right-4 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-xl transition hover:scale-105 hover:shadow-2xl sm:bottom-6 sm:right-6 sm:h-16 sm:w-16">
   <?= brand_icon('whatsapp', 'h-8 w-8 sm:h-9 sm:w-9') ?>
 </a>

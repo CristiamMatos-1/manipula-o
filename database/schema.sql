@@ -102,6 +102,10 @@ CREATE TABLE IF NOT EXISTS company_info (
   logo_url VARCHAR(500) NOT NULL DEFAULT '',
   logo_display ENUM('both','image','name') NOT NULL DEFAULT 'both',
   tagline VARCHAR(120) NOT NULL DEFAULT 'Farmácia de Manipulação',
+  -- Dados legais exibidos no rodapé
+  legal_name VARCHAR(150) NOT NULL DEFAULT '',
+  cnpj VARCHAR(18) NOT NULL DEFAULT '',
+  legal_extra VARCHAR(300) NOT NULL DEFAULT '',
   founded_year SMALLINT UNSIGNED NOT NULL DEFAULT 1991,
   -- Farmacêutico Responsável
   pharmacist_name VARCHAR(120) NOT NULL DEFAULT '',
@@ -121,4 +125,12 @@ CREATE TABLE IF NOT EXISTS company_info (
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   CONSTRAINT chk_company_singleton CHECK (id = 1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Textos e imagens editáveis da página inicial (chave/valor). Sem linha = usa o texto padrão do código.
+CREATE TABLE IF NOT EXISTS site_settings (
+  skey VARCHAR(60) NOT NULL,
+  svalue TEXT NOT NULL,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (skey)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

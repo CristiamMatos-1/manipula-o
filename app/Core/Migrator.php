@@ -9,7 +9,7 @@ namespace App\Core;
  */
 final class Migrator
 {
-    public const VERSION = 2;
+    public const VERSION = 3;
 
     public static function file(): string
     {
@@ -49,6 +49,17 @@ final class Migrator
             if (!self::hasColumn('company_info', 'logo_display')) {
                 Database::run("ALTER TABLE company_info ADD COLUMN logo_display ENUM('both','image','name') NOT NULL DEFAULT 'both' AFTER logo_url");
             }
+            foreach (['legal_name' => 'VARCHAR(150)', 'cnpj' => 'VARCHAR(18)', 'legal_extra' => 'VARCHAR(300)'] as $col => $type) {
+                if (!self::hasColumn('company_info', $col)) {
+                    Database::run("ALTER TABLE company_info ADD COLUMN `$col` $type NOT NULL DEFAULT ''");
+                }
+            }
+            Database::run('CREATE TABLE IF NOT EXISTS site_settings (
+                skey VARCHAR(60) NOT NULL,
+                svalue TEXT NOT NULL,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (skey)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
             self::markCurrent();
         } catch (\Throwable $e) {
             error_log('Falha na migração do banco: ' . $e->getMessage());

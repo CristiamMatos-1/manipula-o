@@ -3,7 +3,7 @@ use App\Core\Rbac;
 
 $canEdit = Rbac::can($user['role'], 'company:edit');
 $pageTitle = 'Dados da empresa';
-$pageDesc = 'Informações globais exibidas no site: fundação, farmacêutico responsável, contato, vídeo e redes sociais.';
+$pageDesc = 'Informações globais exibidas no site: nome e logo, dados legais, farmacêutico responsável, contato, vídeo e redes sociais. Textos e banner da página inicial ficam em "Página inicial".';
 require __DIR__ . '/_header.php';
 
 $f = static fn (string $name, string $label, array $o = []) => field($label, $name, ['value' => $v[$name] ?? '', 'error' => $errors[$name] ?? null] + $o);
@@ -31,6 +31,14 @@ $f = static fn (string $name, string $label, array $o = []) => field($label, $na
         </div>
         <?php if (!empty($errors['logo_display'])): ?><p role="alert" class="mt-1 text-xs font-medium text-red-600"><?= e($errors['logo_display']) ?></p><?php endif ?>
       </fieldset>
+    </section>
+    <section class="card space-y-4">
+      <h2 class="text-lg font-bold">Dados legais (aparecem no rodapé)</h2>
+      <div class="grid gap-4 sm:grid-cols-2">
+        <?= $f('legal_name', 'Razão social', ['class' => 'sm:col-span-2', 'attrs' => 'maxlength="150" placeholder="Ex.: Drogacare Farmácia de Manipulação Ltda."']) ?>
+        <?= $f('cnpj', 'CNPJ', ['attrs' => 'inputmode="numeric" maxlength="18" placeholder="00.000.000/0000-00"', 'hint' => 'Pode digitar só os números; o sistema formata.']) ?>
+        <?= $f('legal_extra', 'Outras informações legais', ['type' => 'textarea', 'rows' => 3, 'class' => 'sm:col-span-2', 'attrs' => 'maxlength="300"', 'hint' => 'Ex.: Inscrição estadual, AFE/ANVISA, licença sanitária, CRF da empresa. Uma informação por linha.']) ?>
+      </div>
     </section>
     <section class="card space-y-4">
       <h2 class="text-lg font-bold">Farmacêutico(a) Responsável</h2>
