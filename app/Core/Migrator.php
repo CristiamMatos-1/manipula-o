@@ -9,7 +9,7 @@ namespace App\Core;
  */
 final class Migrator
 {
-    public const VERSION = 3;
+    public const VERSION = 4;
 
     public static function file(): string
     {
@@ -53,6 +53,9 @@ final class Migrator
                 if (!self::hasColumn('company_info', $col)) {
                     Database::run("ALTER TABLE company_info ADD COLUMN `$col` $type NOT NULL DEFAULT ''");
                 }
+            }
+            if (!self::hasColumn('company_info', 'hero_video_upload')) {
+                Database::run("ALTER TABLE company_info ADD COLUMN hero_video_upload VARCHAR(500) NOT NULL DEFAULT '' AFTER hero_video_url");
             }
             Database::run('CREATE TABLE IF NOT EXISTS site_settings (
                 skey VARCHAR(60) NOT NULL,

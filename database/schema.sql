@@ -119,6 +119,8 @@ CREATE TABLE IF NOT EXISTS company_info (
   maps_embed_url VARCHAR(500) NOT NULL DEFAULT '',
   -- Vídeo e redes sociais
   hero_video_url VARCHAR(500) NOT NULL DEFAULT '',
+  -- Vídeo institucional enviado (arquivo em public/uploads/videos). Com link E arquivo, o site sorteia um a cada acesso.
+  hero_video_upload VARCHAR(500) NOT NULL DEFAULT '',
   youtube_url VARCHAR(500) NOT NULL DEFAULT '',
   instagram_url VARCHAR(500) NOT NULL DEFAULT '',
   facebook_url VARCHAR(500) NOT NULL DEFAULT '',

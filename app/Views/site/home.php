@@ -3,7 +3,7 @@ use App\Core\Embed;
 use App\Models\Company;
 
 $c = $company;
-$video = Embed::video($c['hero_video_url']);
+$video = Embed::heroVideo($c);
 $years = Company::yearsInBusiness((int) $c['founded_year']);
 $photo = safe_image_url($c['pharmacist_photo_url']) ?? asset('img/avatar-placeholder.svg');
 $map = Embed::maps($c['maps_embed_url'], $c['address']);

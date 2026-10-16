@@ -96,6 +96,11 @@ nome aleatório (`public/uploads/AAAA/<24 hex>.<ext>`), e com GD regrava a image
 O caminho é gravado como `/uploads/...`. `public/uploads/.htaccess` desativa scripts, bloqueia `php/html/svg/js` e envia CSP restritiva. SVG não é aceito.
 Imagens antigas são apagadas ao trocar/remover. `public/.user.ini` (e na raiz) eleva `upload_max_filesize` para 8M quando o host permite.
 
+### Vídeo institucional
+`company_info.hero_video_url` (YouTube via youtube-nocookie ou .mp4 externo) e `hero_video_upload` (arquivo em `public/uploads/videos/<24 hex>.mp4|webm`).
+`Upload::video()` valida tipo real (`finfo`) **e** assinatura (`ftyp` do MP4 / EBML do WebM), limite 100 MB, rejeita `<?php` nos primeiros 64 KB; o arquivo antigo é apagado ao trocar/remover.
+`Embed::heroVideo()` junta os vídeos ativos e, com link **e** arquivo, sorteia um por requisição (`random_int`). `.user.ini` eleva `upload_max_filesize` para 100M quando o host permite.
+
 ### Feed da página inicial
 Páginas `PUBLISHED` com `show_on_home = 1` aparecem na seção `#novidades` da home, **depois do Contato**, `ORDER BY published_at DESC, id DESC`, 6 por vez.
 `GET /feed?pagina=N` devolve o fragmento HTML (rolagem infinita via `IntersectionObserver`); sem JS, `/?pagina=N` renderiza N×6 cartões.

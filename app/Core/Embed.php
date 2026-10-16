@@ -36,6 +36,30 @@ final class Embed
         return null;
     }
 
+    /**
+     * Vídeos ativos do Hero: link (YouTube ou .mp4 externo) e/ou arquivo enviado.
+     * @return list<array{kind:string,src:string,origin:string}>
+     */
+    public static function heroVideos(array $company): array
+    {
+        $list = [];
+        if ($v = self::video($company['hero_video_url'] ?? '')) {
+            $list[] = $v + ['origin' => 'link'];
+        }
+        $file = (string) ($company['hero_video_upload'] ?? '');
+        if ($file !== '' && preg_match('#^/uploads/videos/[a-f0-9]{24}\.(mp4|webm)$#', $file) && is_file(Upload::dir() . substr($file, strlen('/uploads')))) {
+            $list[] = ['kind' => 'file', 'src' => static_url($file), 'origin' => 'upload'];
+        }
+        return $list;
+    }
+
+    /** Com os dois ativos, sorteia um a cada acesso. */
+    public static function heroVideo(array $company): ?array
+    {
+        $list = self::heroVideos($company);
+        return $list === [] ? null : $list[random_int(0, count($list) - 1)];
+    }
+
     /** Só aceita incorporação oficial do Google Maps; senão gera pelo endereço. */
     public static function maps(?string $raw, string $address): ?string
     {

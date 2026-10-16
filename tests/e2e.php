@@ -448,6 +448,63 @@ check('Visualizador NÃO consegue salvar a página inicial', $s === 302 && path(
 check('Anônimo é mandado ao login na página inicial do painel', $s === 302 && path($loc) === '/admin/login');
 
 
+echo "== Vídeo institucional: link do YouTube, arquivo, ou os dois (sorteio) ==\n";
+$mp4 = tempnam(sys_get_temp_dir(), 'mp4');
+file_put_contents($mp4, "\0\0\0\x18ftypmp42\0\0\0\0mp42isom\0\0\0\x08free" . str_repeat("\0", 64));
+$webm = tempnam(sys_get_temp_dir(), 'webm');
+file_put_contents($webm, hex2bin('1a45dfa3') . hex2bin('9f') . hex2bin('428681') . "\x01" . hex2bin('42f78101') . hex2bin('42f2810442f38108') . hex2bin('428284') . 'webm' . str_repeat("\0", 64));
+$fakeVideo = tempnam(sys_get_temp_dir(), 'fv');
+file_put_contents($fakeVideo, "isto não é um vídeo");
+$phpVideo = tempnam(sys_get_temp_dir(), 'pv');
+file_put_contents($phpVideo, "\0\0\0\x18ftypmp42<?php system('id'); ?>" . str_repeat("\0", 64));
+$yt = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+$cb = fn (array $o) => $o + $companyBase + ['logo_display' => 'both'];
+$vidRe = '#<video[^>]*src="[^"]*/uploads/videos/[a-f0-9]{24}\.(mp4|webm)#';
+
+[$s, $b] = $admin->postFiles('/admin/empresa', '/admin/empresa', $cb(['hero_video_url' => '']), ['hero_video_upload_file' => [$fakeVideo, 'video.mp4', 'video/mp4']]);
+check('Arquivo que não é vídeo (texto .mp4) é rejeitado', $s === 422 && str_contains($b, 'Formato não aceito'));
+[$s, $b] = $admin->postFiles('/admin/empresa', '/admin/empresa', $cb(['hero_video_url' => '']), ['hero_video_upload_file' => [$phpVideo, 'video.mp4', 'video/mp4']]);
+check('Vídeo com código PHP embutido é rejeitado', $s === 422);
+[$s] = $admin->postFiles('/admin/empresa', '/admin/empresa', $cb(['hero_video_url' => $yt]), []);
+[, $b] = $anon->get('/');
+check('Só link do YouTube: mostra o player do YouTube', $s === 302 && str_contains($b, 'youtube-nocookie.com/embed/dQw4w9WgXcQ') && preg_match($vidRe, $b) !== 1);
+[$s] = $admin->postFiles('/admin/empresa', '/admin/empresa', $cb(['hero_video_url' => '']), ['hero_video_upload_file' => [$mp4, 'institucional.mp4', 'video/mp4']]);
+[, $b] = $anon->get('/');
+check('Só arquivo: mostra o <video> enviado (sem YouTube)', $s === 302 && preg_match($vidRe, $b, $vm) === 1 && !str_contains($b, 'youtube-nocookie.com'));
+preg_match('#<video[^>]*src="([^"]*/uploads/videos/[a-f0-9]{24}\.(?:mp4|webm))"#', $b, $vs);
+$vidFile = $disk($vs[1] ?? '');
+clearstatcache();
+check('Arquivo de vídeo gravado em public/uploads/videos', $vs !== [] && is_file($vidFile));
+$ch = curl_init($origin . ($vs[1] ?? '')); curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true]); curl_exec($ch);
+check('Vídeo é servido como video/mp4', curl_getinfo($ch, CURLINFO_RESPONSE_CODE) === 200 && str_starts_with((string) curl_getinfo($ch, CURLINFO_CONTENT_TYPE), 'video/mp4')); curl_close($ch);
+[$s, $pg] = $admin->get('/admin/empresa');
+check('Painel indica "Ativo: arquivo de vídeo enviado"', str_contains($pg, 'Ativo: arquivo de vídeo enviado') && str_contains($pg, 'name="hero_video_upload_file"'));
+[$s] = $admin->postFiles('/admin/empresa', '/admin/empresa', $cb(['hero_video_url' => $yt]), []);
+$kinds = ['youtube' => 0, 'file' => 0];
+for ($i = 0; $i < 40; $i++) {
+    [, $b] = $anon->get('/');
+    if (str_contains($b, 'youtube-nocookie.com/embed/dQw4w9WgXcQ')) { $kinds['youtube']++; }
+    if (preg_match($vidRe, $b) === 1) { $kinds['file']++; }
+}
+check('Com os dois ativos, cada acesso mostra UM deles (nunca os dois juntos)', $kinds['youtube'] + $kinds['file'] === 40, json_encode($kinds));
+check('Com os dois ativos, o sorteio alterna entre YouTube e arquivo', $kinds['youtube'] > 0 && $kinds['file'] > 0, json_encode($kinds));
+[, $pg] = $admin->get('/admin/empresa');
+check('Painel indica "Ativos os dois"', str_contains($pg, 'Ativos os dois'));
+[$s] = $admin->postFiles('/admin/empresa', '/admin/empresa', $cb(['hero_video_url' => $yt]), ['hero_video_upload_file' => [$webm, 'novo.webm', 'video/webm']]);
+[, $b] = $anon->get('/');
+clearstatcache();
+check('Trocar o arquivo (WebM aceito) apaga o MP4 antigo', $s === 302 && !is_file($vidFile));
+preg_match_all('#/uploads/videos/[a-f0-9]{24}\.webm#', implode('', array_map(fn () => $anon->get('/')[1], range(1, 12))), $wm);
+check('Novo arquivo WebM entra no sorteio', count($wm[0]) > 0);
+[$s] = $admin->postFiles('/admin/empresa', '/admin/empresa', $cb(['hero_video_url' => $yt, 'hero_video_upload_remove' => '1']), []);
+[, $b] = $anon->get('/');
+check('Remover o arquivo deixa só o YouTube', $s === 302 && str_contains($b, 'youtube-nocookie.com') && preg_match($vidRe, $b) !== 1 && glob(__DIR__ . '/../public/uploads/videos/*') === []);
+$admin->postFiles('/admin/empresa', '/admin/empresa', $cb(['hero_video_url' => '']), []);
+[, $b] = $anon->get('/');
+check('Sem link e sem arquivo, o topo mostra o aviso padrão (sem player)', !str_contains($b, 'youtube-nocookie.com') && preg_match($vidRe, $b) !== 1 && str_contains($b, 'O vídeo institucional será exibido aqui.'));
+$admin->postFiles('/admin/empresa', '/admin/empresa', $cb(['hero_video_url' => $yt]), []);
+
+
 echo "== Auditoria ==\n";
 [$s, $b] = $admin->get('/admin/auditoria');
 $aud = static function (string $q) use ($admin): string {

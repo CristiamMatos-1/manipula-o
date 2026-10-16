@@ -47,14 +47,16 @@ final class CompanyController extends AdminController
             if ($v[$f] !== '' && (!safe_url($v[$f]) || mb_strlen($v[$f]) > 500)) $e[$f] = "{$label}: informe uma URL http(s) válida.";
         }
         if (!isset($e['hero_video_url']) && $v['hero_video_url'] !== '' && !Embed::video($v['hero_video_url'])) {
-            $e['hero_video_url'] = 'Use um link do YouTube ou um arquivo .mp4/.webm.';
+            $e['hero_video_url'] = 'Use um link do YouTube (ou o endereço direto de um arquivo .mp4/.webm).';
         }
 
         $oldLogo = (string) ($before['logo_url'] ?? '');
         $oldPhoto = (string) ($before['pharmacist_photo_url'] ?? '');
+        $oldVideo = (string) ($before['hero_video_upload'] ?? '');
         if (!$e) {
             $v['logo_url'] = (string) $this->imageValue('logo_url', $oldLogo, $e);
             $v['pharmacist_photo_url'] = (string) $this->imageValue('pharmacist_photo_url', $oldPhoto, $e);
+            $v['hero_video_upload'] = (string) $this->videoValue('hero_video_upload', $oldVideo, $e);
             if (!isset($e['logo_url']) && $v['logo_display'] === 'image' && $v['logo_url'] === '') {
                 $e['logo_display'] = 'Para mostrar só a imagem, anexe a logo da empresa.';
             }
@@ -62,6 +64,8 @@ final class CompanyController extends AdminController
         if ($e) {
             $this->discardReplacedImage($v['logo_url'] ?? null, $oldLogo);
             $this->discardReplacedImage($v['pharmacist_photo_url'] ?? null, $oldPhoto);
+            $this->discardReplacedImage($v['hero_video_upload'] ?? null, $oldVideo);
+            $v['hero_video_upload'] = $oldVideo;
             $v['logo_url'] = $oldLogo;
             $v['pharmacist_photo_url'] = $oldPhoto;
             $this->render('admin/company', ['title' => 'Dados da empresa', 'user' => $user, 'v' => $v, 'errors' => $e], 'layouts/admin', 422);
@@ -72,6 +76,7 @@ final class CompanyController extends AdminController
         Company::update($v);
         $this->discardReplacedImage($oldLogo, $v['logo_url']);
         $this->discardReplacedImage($oldPhoto, $v['pharmacist_photo_url']);
+        $this->discardReplacedImage($oldVideo, $v['hero_video_upload']);
         $changed = array_keys(array_filter($v, static fn ($val, $k) => (string) $before[$k] !== (string) $val, ARRAY_FILTER_USE_BOTH));
         Audit::log($user, 'COMPANY_UPDATE', 'CompanyInfo', '1', $changed ? 'Campos alterados: ' . implode(', ', $changed) : 'Sem alterações');
         $this->flashRedirect('success', 'Dados da empresa salvos e publicados no site.', '/admin/empresa');

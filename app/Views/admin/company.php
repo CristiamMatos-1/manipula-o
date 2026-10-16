@@ -61,7 +61,23 @@ $f = static fn (string $name, string $label, array $o = []) => field($label, $na
     <section class="card space-y-4">
       <h2 class="text-lg font-bold">Vídeo e redes sociais</h2>
       <div class="grid gap-4 sm:grid-cols-2">
-        <?= $f('hero_video_url', 'Vídeo institucional (Hero)', ['class' => 'sm:col-span-2', 'attrs' => 'placeholder="https://www.youtube.com/watch?v=... ou https://.../video.mp4"', 'hint' => 'Link do YouTube ou arquivo .mp4/.webm.']) ?>
+        <div class="sm:col-span-2 space-y-4 rounded-xl border border-brand-navy/10 bg-brand-mint/10 p-4">
+          <div>
+            <h3 class="font-bold">Vídeo institucional (topo do site)</h3>
+            <p class="text-sm text-brand-navy/70">Use um dos dois ou os dois: com o link do YouTube <strong>e</strong> o arquivo preenchidos, a cada acesso o site mostra um deles, sorteado.</p>
+            <?php
+              $hasLink = !empty($v['hero_video_url']) && \App\Core\Embed::video($v['hero_video_url']);
+              $hasFile = !empty(\App\Core\Embed::heroVideos(['hero_video_upload' => $v['hero_video_upload'] ?? '']));
+              [$vs, $vc] = $hasLink && $hasFile ? ['Ativos os dois: o site alterna aleatoriamente a cada acesso', 'bg-brand-green/30 text-brand-forest']
+                  : ($hasLink ? ['Ativo: link do YouTube', 'bg-brand-green/30 text-brand-forest']
+                  : ($hasFile ? ['Ativo: arquivo de vídeo enviado', 'bg-brand-green/30 text-brand-forest']
+                  : ['Nenhum vídeo ativo (o topo mostra a logo)', 'bg-brand-navy/10 text-brand-navy/70']));
+            ?>
+            <p class="mt-2 inline-flex rounded-full px-3 py-1 text-xs font-bold <?= e($vc) ?>"><?= e($vs) ?></p>
+          </div>
+          <?= $f('hero_video_url', 'Link do vídeo do YouTube', ['attrs' => 'placeholder="https://www.youtube.com/watch?v=..."', 'hint' => 'Cole o endereço do vídeo. Para desativar, deixe vazio.']) ?>
+          <?= video_field('Arquivo de vídeo (MP4 ou WebM)', 'hero_video_upload', $v['hero_video_upload'] ?? null, $errors['hero_video_upload'] ?? null, 'Envie um MP4 leve (ideal: até 20 MB; limite do sistema: 100 MB, e o servidor pode limitar menos).') ?>
+        </div>
         <?= $f('youtube_url', 'Canal do YouTube', ['type' => 'url']) ?>
         <?= $f('instagram_url', 'Instagram', ['type' => 'url']) ?>
         <?= $f('facebook_url', 'Facebook', ['type' => 'url']) ?>

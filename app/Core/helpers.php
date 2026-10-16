@@ -250,3 +250,26 @@ function origin_url(string $path): string
     $origin = ($p['scheme'] ?? 'https') . '://' . ($p['host'] ?? 'localhost') . (isset($p['port']) ? ':' . $p['port'] : '');
     return $origin . '/' . ltrim($path, '/');
 }
+
+/** Campo de vídeo enviado: prévia do atual, seleção de arquivo e opção de remover. */
+function video_field(string $label, string $column, ?string $current, ?string $error = null, ?string $hint = null): string
+{
+    $src = ($current !== null && preg_match('#^/uploads/videos/[a-f0-9]{24}\.(mp4|webm)$#', $current)) ? static_url($current) : null;
+    $html = '<div data-video-field><span class="label">' . e($label) . '</span><div class="mt-1 flex flex-wrap items-start gap-4">';
+    if ($src) {
+        $html .= '<video src="' . e($src) . '" controls muted preload="metadata" playsinline class="aspect-video w-56 max-w-full rounded-xl border border-brand-navy/10 bg-black"></video>';
+    }
+    $html .= '<div class="min-w-0 flex-1">';
+    $html .= '<input type="file" id="' . e($column) . '_file" name="' . e($column) . '_file" accept="video/mp4,video/webm" data-video-input data-max-bytes="' . \App\Core\Upload::MAX_VIDEO_BYTES . '" class="block w-full text-sm file:mr-3 file:min-h-[40px] file:rounded-lg file:border-0 file:bg-brand-blue file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-brand-navy">';
+    if ($src) {
+        $html .= '<label class="mt-2 inline-flex items-center gap-2 text-sm"><input type="checkbox" name="' . e($column) . '_remove" value="1" class="h-4 w-4 rounded border-brand-navy/30"> Remover vídeo enviado</label>';
+    }
+    $html .= '</div></div>';
+    if ($hint && !$error) {
+        $html .= '<p class="mt-1 text-xs text-brand-navy/60">' . e($hint) . '</p>';
+    }
+    if ($error) {
+        $html .= '<p role="alert" class="mt-1 text-xs font-medium text-red-600">' . e($error) . '</p>';
+    }
+    return $html . '</div>';
+}

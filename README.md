@@ -95,6 +95,11 @@ Painel → **Página inicial**. Tudo o que aparece na página inicial é editáv
 - Nos textos use `{empresa}`, `{slogan}`, `{ano}` e `{anos}`: são trocados pelos dados da empresa automaticamente.
 - **Restaurar textos padrão** desfaz todas as edições de texto (não mexe no banner).
 
+**Vídeo institucional (topo do site)**
+Painel → **Empresa** → **Vídeo institucional**: informe o **link de um vídeo do YouTube**, **envie um arquivo** (MP4 ou WebM) ou **use os dois**.
+Com os dois preenchidos, **a cada acesso o site mostra um deles, sorteado**. O painel indica quais estão ativos. Para desativar um, esvazie o link ou marque "Remover vídeo enviado".
+Dica: use MP4 leve (ideal até 20 MB; o sistema aceita até 100 MB, mas a hospedagem pode limitar menos).
+
 **Dados legais no rodapé**
 Painel → **Empresa** → **Dados legais**: razão social, CNPJ (validado e formatado) e outras informações (inscrição estadual, AFE/ANVISA, licença...). Só aparecem no rodapé os campos preenchidos.
 

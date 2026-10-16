@@ -26,6 +26,20 @@ abstract class AdminController extends Controller
         return Request::str($column . '_remove') === '1' ? null : $current;
     }
 
+    /** Igual a imageValue(), para vídeo (campos "{coluna}_file" e "{coluna}_remove"). */
+    protected function videoValue(string $column, ?string $current, array &$errors): ?string
+    {
+        [$path, $error] = Upload::video($column . '_file');
+        if ($error !== null) {
+            $errors[$column] = $error;
+            return $current;
+        }
+        if ($path !== null) {
+            return $path;
+        }
+        return Request::str($column . '_remove') === '1' ? null : $current;
+    }
+
     /** Apaga do disco a imagem antiga quando ela foi trocada ou removida. */
     protected function discardReplacedImage(?string $old, ?string $new): void
     {

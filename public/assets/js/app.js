@@ -72,6 +72,18 @@
     });
   });
 
+  // Vídeo: confere o tamanho antes de enviar
+  $$('[data-video-input]').forEach(function (input) {
+    input.addEventListener('change', function () {
+      var file = input.files && input.files[0];
+      var max = parseInt(input.getAttribute('data-max-bytes'), 10) || 0;
+      if (file && max && file.size > max) {
+        window.alert('O vídeo é maior que o limite de ' + Math.round(max / 1048576) + ' MB. Escolha um arquivo menor.');
+        input.value = '';
+      }
+    });
+  });
+
   // Feed da página inicial: rolagem infinita (sem JS, o botão "Carregar mais" funciona como link)
   var feed = $('[data-feed]');
   var more = $('[data-feed-more]');

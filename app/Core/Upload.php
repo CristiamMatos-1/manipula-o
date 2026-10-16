@@ -37,11 +37,7 @@ final class Upload
             return [null, null];
         }
         if ($f['error'] !== UPLOAD_ERR_OK) {
-            return [null, match ($f['error']) {
-                UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE => 'Imagem maior que o limite do servidor. Envie uma imagem menor (ideal: até 2 MB).',
-                UPLOAD_ERR_PARTIAL => 'O envio foi interrompido. Tente novamente.',
-                default => 'Não foi possível enviar a imagem (código ' . (int) $f['error'] . ').',
-            }];
+            return [null, self::uploadError((int) $f['error'], 'imagem', 'Envie uma imagem menor (ideal: até 2 MB).')];
         }
         $tmp = (string) $f['tmp_name'];
         if (!is_uploaded_file($tmp) && !(PHP_SAPI === 'cli')) {
@@ -86,9 +82,64 @@ final class Upload
         return ['/uploads/' . $sub . '/' . $name, null];
     }
 
+    private static function uploadError(int $code, string $what, string $hint): string
+    {
+        return match ($code) {
+            UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE => ucfirst($what) . ' maior que o limite do servidor. ' . $hint,
+            UPLOAD_ERR_PARTIAL => 'O envio foi interrompido. Tente novamente.',
+            default => 'Não foi possível enviar o arquivo (código ' . $code . ').',
+        };
+    }
+
+    public const MAX_VIDEO_BYTES = 100 * 1024 * 1024;
+
+    /**
+     * Upload de vídeo institucional (MP4 ou WebM). Valida tipo real (finfo) e assinatura do arquivo.
+     * @return array{0:?string,1:?string} [caminho público (/uploads/videos/xxx.mp4) ou null, erro ou null]
+     */
+    public static function video(string $input): array
+    {
+        $f = $_FILES[$input] ?? null;
+        if (!is_array($f) || !isset($f['error']) || is_array($f['error']) || $f['error'] === UPLOAD_ERR_NO_FILE) {
+            return [null, null];
+        }
+        if ($f['error'] !== UPLOAD_ERR_OK) {
+            return [null, self::uploadError((int) $f['error'], 'vídeo', 'Aumente upload_max_filesize/post_max_size no PHP da hospedagem ou envie um arquivo menor (ideal: até 20 MB, em MP4).')];
+        }
+        $tmp = (string) $f['tmp_name'];
+        if (!is_uploaded_file($tmp) && PHP_SAPI !== 'cli') {
+            return [null, 'Arquivo de envio inválido.'];
+        }
+        if ((int) $f['size'] > self::MAX_VIDEO_BYTES) {
+            return [null, 'O vídeo pode ter no máximo 100 MB.'];
+        }
+        $head = (string) @file_get_contents($tmp, false, null, 0, 65536);
+        $mime = (new \finfo(FILEINFO_MIME_TYPE))->file($tmp) ?: '';
+        $isMp4 = $mime === 'video/mp4' && substr($head, 4, 4) === 'ftyp';
+        $isWebm = $mime === 'video/webm' && str_starts_with($head, "\x1A\x45\xDF\xA3");
+        if (!$isMp4 && !$isWebm) {
+            return [null, 'Formato não aceito. Envie um vídeo MP4 (recomendado) ou WebM.'];
+        }
+        if (stripos($head, '<?php') !== false) {
+            return [null, 'Arquivo suspeito: contém código. Envie apenas vídeos.'];
+        }
+        $dir = self::dir() . '/videos';
+        if (!is_dir($dir) && !@mkdir($dir, 0755, true) && !is_dir($dir)) {
+            return [null, 'Não foi possível criar a pasta public/uploads/videos. Verifique a permissão de escrita.'];
+        }
+        $name = bin2hex(random_bytes(12)) . ($isMp4 ? '.mp4' : '.webm');
+        $dest = $dir . '/' . $name;
+        $moved = PHP_SAPI === 'cli' ? @copy($tmp, $dest) : @move_uploaded_file($tmp, $dest);
+        if (!$moved) {
+            return [null, 'Não foi possível salvar o vídeo. Verifique a permissão de escrita em public/uploads.'];
+        }
+        @chmod($dest, 0644);
+        return ['/uploads/videos/' . $name, null];
+    }
+
     public static function delete(?string $url): void
     {
-        if ($url === null || !preg_match('#^/uploads/\d{4}/[a-f0-9]{24}\.(jpg|png|webp|gif)$#', $url)) {
+        if ($url === null || !preg_match('#^/uploads/(\d{4}/[a-f0-9]{24}\.(jpg|png|webp|gif)|videos/[a-f0-9]{24}\.(mp4|webm))$#', $url)) {
             return;
         }
         $file = self::dir() . substr($url, strlen('/uploads'));

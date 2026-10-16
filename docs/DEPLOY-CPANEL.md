@@ -123,6 +123,7 @@ Apague `config/config.php` e `storage/installed.lock`, esvazie/recrie o banco e 
 | "Access denied for user" no instalador | Usuário sem privilégios no banco | Refaça "Adicionar usuário ao banco" com todos os privilégios; use o nome completo com prefixo |
 | "Could not write config" | Sem permissão em `config/` | Aplique 755/775 na pasta `config` |
 | Fica pedindo login toda hora | Sessão sem permissão de escrita | Garanta escrita em `storage/sessions` (ou na pasta de sessões do PHP) |
+| Erro ao enviar vídeo institucional | Limite de upload do PHP (padrão costuma ser 2-64 MB) | cPanel → MultiPHP INI Editor: `upload_max_filesize` e `post_max_size` (ex.: 100M/110M) e `max_execution_time`; ou envie um MP4 menor; confira permissão de `public/uploads` |
 | Erro ao anexar imagem / "maior que o limite do servidor" | Limite de upload do PHP (cPanel → MultiPHP INI Editor) | Aumente `upload_max_filesize` e `post_max_size` (8M/12M) ou envie imagem menor; confira permissão de `public/uploads` |
 | E-mail de recuperação não chega | SMTP não configurado | Configure `smtp_url`; enquanto isso consulte `storage/logs/mail.log` |
 | Mapa/vídeo não aparecem | URL incorreta | Use o link do YouTube e o `src` do iframe do Google Maps; outros domínios são bloqueados por segurança |
