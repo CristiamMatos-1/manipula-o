@@ -23,12 +23,25 @@ Anote: nome completo do banco, nome completo do usuário, senha. O servidor é `
 1. No seu computador, compacte **todo o conteúdo** do projeto em um `.zip` (não inclua `node_modules` nem a pasta `.git`).
 2. cPanel → **Gerenciador de Arquivos** → abra `public_html` (ou a pasta do domínio/subdomínio).
 3. Clique em **Carregar**, envie o `.zip`, depois botão direito → **Extrair**.
-4. Confira que dentro de `public_html` estão: `.htaccess`, `app/`, `config/`, `database/`, `public/`, `storage/`, `bin/`.
+4. Confira que dentro de `public_html` estão: `.htaccess`, `index.php`, `install.php`, `app/`, `config/`, `database/`, `public/`, `storage/`, `bin/`.
    Ative *Mostrar arquivos ocultos* (Configurações) para ver o `.htaccess`.
 
 > O `.htaccess` da raiz redireciona todo o tráfego para `public/` e bloqueia o acesso web às pastas internas.
 > **Alternativa mais segura:** colocar o projeto fora de `public_html` (ex.: `/home/conta/drogacare`) e
 > apontar o domínio (*Domínios* → *Raiz do documento*) para `/home/conta/drogacare/public`.
+
+### Instalando em uma subpasta (ex.: `public_html/manipula-o`)
+
+Funciona normalmente. Atenção a estes pontos:
+
+- Os arquivos do projeto (`index.php`, `install.php`, `.htaccess`, `app/`, `public/`...) devem ficar **direto** dentro de `manipula-o/`.
+  Se o ZIP criou uma pasta extra (ex.: `manipula-o/manipula-o-main/`), mova o conteúdo dela para `manipula-o/`.
+- O instalador **não é uma pasta**: é o arquivo `install.php` na raiz do projeto. Acesse
+  `https://seu-dominio.com.br/manipula-o/install.php` (também funciona `/manipula-o/install`).
+  Abrir `https://seu-dominio.com.br/manipula-o/` já redireciona automaticamente para o instalador enquanto o sistema não estiver instalado.
+- O arquivo `.htaccess` é oculto: ative *Mostrar arquivos ocultos* no Gerenciador de Arquivos e confira se ele existe em
+  `manipula-o/` e em `manipula-o/public/`. Sem ele o instalador abre, mas as demais páginas (`/blog`, `/admin/login`) dão 404.
+- Depois de instalar, informe o endereço completo com a subpasta (`https://seu-dominio.com.br/manipula-o`).
 
 ## Passo 3 — Permissões de escrita
 
@@ -39,7 +52,7 @@ Pelo Gerenciador de Arquivos (botão direito → *Alterar permissões*), garanta
 
 ## Passo 4 — Rodar o instalador
 
-1. Acesse `https://seu-site.com.br/install`.
+1. Acesse `https://seu-site.com.br/install.php` (em subpasta: `https://seu-site.com.br/manipula-o/install.php`).
 2. A tela mostra a verificação do ambiente (versão do PHP, extensões, pastas graváveis). Corrija o que estiver em vermelho.
 3. Preencha:
    - **Endereço do site** (ex.: `https://www.drogacare.com.br`);
@@ -49,7 +62,7 @@ Pelo Gerenciador de Arquivos (botão direito → *Alterar permissões*), garanta
    - (opcional) **SMTP** — veja o Passo 6.
 4. Clique em **Instalar**. O instalador cria as tabelas, o administrador inicial (senha `admin`), os dados iniciais da empresa e conteúdo de exemplo, grava `config/config.php` e bloqueia o instalador (`storage/installed.lock`).
 
-Depois disso `/install` deixa de existir (retorna 404).
+Depois disso o instalador deixa de existir (`install.php` retorna 404).
 
 ## Passo 5 — Primeiro acesso e troca de senha
 
@@ -112,7 +125,9 @@ Apague `config/config.php` e `storage/installed.lock`, esvazie/recrie o banco e 
 | E-mail de recuperação não chega | SMTP não configurado | Configure `smtp_url`; enquanto isso consulte `storage/logs/mail.log` |
 | Mapa/vídeo não aparecem | URL incorreta | Use o link do YouTube e o `src` do iframe do Google Maps; outros domínios são bloqueados por segurança |
 | CSS quebrado | Raiz do documento errada | Domínio deve apontar para a pasta do projeto (com `.htaccess`) ou para `public/` |
-| Instalador não abre (404) | Já instalado | Remova `storage/installed.lock` e `config/config.php` para reinstalar |
+| Não encontro o instalador / `/install` dá 404 | O instalador é o arquivo `install.php`, não uma pasta; ou o sistema já foi instalado | Acesse `…/install.php`. Se já instalou e quer refazer, remova `storage/installed.lock` e `config/config.php` |
+| Instalador abre mas `/blog` e `/admin/login` dão 404 | `.htaccess` não foi enviado (arquivo oculto) | Ative "Mostrar arquivos ocultos" e envie `.htaccess` (raiz e `public/`) |
+| Página em branco / listagem de pastas em `/manipula-o/` | Arquivos em pasta extra (ex.: `manipula-o/manipula-o-main/`) | Mova o conteúdo para dentro de `manipula-o/` |
 
 ## Segurança pós-instalação
 

@@ -24,6 +24,7 @@ Node.js é necessário **apenas** para recompilar o CSS (ver §10).
 
 ```
 .htaccess                 # (raiz) encaminha para public/ e bloqueia pastas privadas
+index.php, install.php    # entradas na raiz (sem reescrita de URL); delegam a public/index.php
 public/                   # única pasta que deve ser exposta pelo servidor web
   index.php               # front controller
   .htaccess               # rewrite para index.php + cache de estáticos
@@ -58,6 +59,10 @@ tests/e2e.php
 7. Exceções não tratadas são logadas e geram 500 genérico (detalhes só com `debug` = true).
 
 O site público **não inicia sessão** e portanto não grava cookies.
+
+Subpastas: `Config::basePath()` deriva o prefixo de `SCRIPT_NAME`. Quando a página é servida por `index.php`/`install.php` da raiz
+(sem reescrita), os estáticos são servidos de `<base>/public/...` (`Config::publicBase()` / `static_url()`); com reescrita ou com a raiz do
+domínio em `public/`, de `<base>/assets/...`.
 
 ## 4. Configuração (substitui variáveis de ambiente)
 
@@ -134,7 +139,7 @@ O menu esconde itens, mas a autorização real é sempre no servidor (testado co
 Público: `/`, `/blog`, `/blog/{slug}`, `/p/{slug}`, `/sitemap.xml`, `/robots.txt`.
 Autenticação: `/admin/login`, `/admin/logout`, `/admin/esqueci-senha`, `/admin/redefinir-senha?token=`, `/admin/alterar-senha`, `/admin/acesso-negado`.
 Painel: `/admin`, `/admin/posts[/novo|/{id}|/{id}/excluir]`, `/admin/paginas[...]`, `/admin/empresa`, `/admin/usuarios[...]`, `/admin/auditoria`.
-Instalação (somente enquanto não instalado): `/install`.
+Instalação (somente enquanto não instalado): `/install.php` (arquivo físico na raiz, funciona sem `mod_rewrite`) e `/install`.
 
 Artigos/páginas só são públicos com `status = 'PUBLISHED'`; rascunhos retornam 404 ao público.
 

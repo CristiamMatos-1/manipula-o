@@ -59,8 +59,8 @@ com letra maiúscula, minúscula e número. Depois, entre em **Usuários** para 
 ## 4. Instalação (resumo)
 
 1. Crie um banco MySQL e um usuário no cPanel (Bancos de dados MySQL) e dê todos os privilégios.
-2. Envie o conteúdo do projeto para a pasta `public_html` (o `.htaccess` da raiz já direciona tudo para a pasta `public/`).
-3. Abra `https://seu-site.com.br/install`, preencha os dados do banco e o endereço do site e clique em instalar.
+2. Envie o conteúdo do projeto para a pasta `public_html` (o `.htaccess` da raiz já direciona tudo para a pasta `public/`; ative "mostrar arquivos ocultos" para enviá-lo). O instalador é o arquivo `install.php`, não uma pasta.
+3. Abra `https://seu-site.com.br/install.php` (em subpasta: `https://seu-site.com.br/manipula-o/install.php`), preencha os dados do banco e o endereço do site e clique em instalar.
 4. Entre em `https://seu-site.com.br/admin/login` com `admin@drogacare.com.br` / `admin` e troque a senha.
 
 Guia completo passo a passo e solução de problemas: [`docs/DEPLOY-CPANEL.md`](docs/DEPLOY-CPANEL.md).
