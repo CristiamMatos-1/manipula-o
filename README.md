@@ -224,4 +224,6 @@ npm run build
 npm run start
 ```
 
+Instalação em hospedagem **cPanel**: veja [`docs/DEPLOY-CPANEL.md`](./docs/DEPLOY-CPANEL.md).
+
 Detalhes completos (PostgreSQL, SMTP, segredos, segurança, RBAC) em [`ARCHITECTURE.md`](./ARCHITECTURE.md).
