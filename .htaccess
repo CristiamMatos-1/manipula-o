@@ -1,0 +1,20 @@
+# Use este arquivo quando o site for enviado para a RAIZ (public_html) e não for possível
+# apontar o domínio para a pasta public/. Tudo é redirecionado internamente para public/.
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # Pastas privadas nunca são acessíveis pelo navegador
+  RewriteRule ^(app|config|database|storage|bin|docs|assets-src|node_modules)(/|$) - [F,L]
+  RewriteRule ^(\.git|composer|package|tailwind) - [F,L]
+
+  # Entrega arquivos e URLs de public/
+  RewriteCond %{REQUEST_URI} !(^|/)public/
+  RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+
+# Impede a leitura de arquivos sensíveis
+<FilesMatch "^(\.env|\.gitignore|config\.php|.*\.(sql|md|lock|log))$">
+  Require all denied
+</FilesMatch>
