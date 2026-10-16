@@ -7,7 +7,7 @@
   <?php endforeach ?>
 </ul>
 
-<form method="post" action="<?= e(url('/install')) ?>" class="mt-6 space-y-4" novalidate>
+<form method="post" action="<?= e(url('/install.php')) ?>" class="mt-6 space-y-4" novalidate>
   <?= csrf_field() ?>
   <?= alert_box($error ?? null) ?>
   <fieldset class="space-y-4 rounded-xl border border-brand-navy/10 p-4">

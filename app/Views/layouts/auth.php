@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
   <title><?= e(($title ?? 'Painel') . ' | Painel Drogacare') ?></title>
-  <link rel="icon" type="image/svg+xml" href="<?= e(url('favicon.svg')) ?>">
+  <link rel="icon" type="image/svg+xml" href="<?= e(static_url('favicon.svg')) ?>">
   <link rel="stylesheet" href="<?= e(asset('css/app.css')) ?>">
 </head>
 <body>

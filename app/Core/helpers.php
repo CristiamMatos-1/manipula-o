@@ -22,10 +22,16 @@ function abs_url(string $path = ''): string
     return Config::appUrl() . '/' . ltrim($path, '/');
 }
 
+/** URL de arquivo estático dentro de public/. */
+function static_url(string $path): string
+{
+    return Config::publicBase() . '/' . ltrim($path, '/');
+}
+
 function asset(string $path): string
 {
     $file = ROOT . '/public/assets/' . $path;
-    return url('assets/' . $path) . '?v=' . (is_file($file) ? filemtime($file) : 1);
+    return static_url('assets/' . $path) . '?v=' . (is_file($file) ? filemtime($file) : 1);
 }
 
 function redirect(string $path, int $code = 302): never
@@ -101,7 +107,7 @@ function safe_image_url(?string $value): ?string
         return null;
     }
     if (str_starts_with($value, '/') && !str_starts_with($value, '//')) {
-        return url($value);
+        return static_url($value);
     }
     return safe_url($value);
 }

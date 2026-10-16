@@ -42,6 +42,20 @@ final class Config
         return $base;
     }
 
+    /**
+     * Prefixo dos arquivos estáticos. Quando a página é servida por um arquivo na raiz do projeto
+     * (index.php/install.php, sem reescrita de URL), os estáticos ficam em /public.
+     */
+    public static function publicBase(): string
+    {
+        static $pub = null;
+        if ($pub === null) {
+            $scriptDir = realpath(dirname($_SERVER['SCRIPT_FILENAME'] ?? '')) ?: '';
+            $pub = $scriptDir !== '' && $scriptDir === realpath(ROOT) ? self::basePath() . '/public' : self::basePath();
+        }
+        return $pub;
+    }
+
     public static function isHttps(): bool
     {
         return (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')

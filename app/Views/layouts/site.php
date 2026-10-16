@@ -25,7 +25,7 @@ $nav = [['/#sobre', 'Sobre nós'], ['/blog', 'Artigos'], ['/#contato', 'Contato'
   <meta property="og:url" content="<?= e($canonical) ?>">
   <?php if ($ogImage): ?><meta property="og:image" content="<?= e($ogImage) ?>"><?php endif ?>
   <meta name="twitter:card" content="<?= $ogImage ? 'summary_large_image' : 'summary' ?>">
-  <link rel="icon" type="image/svg+xml" href="<?= e(url('favicon.svg')) ?>">
+  <link rel="icon" type="image/svg+xml" href="<?= e(static_url('favicon.svg')) ?>">
   <link rel="preload" href="<?= e(asset('fonts/raleway-latin.woff2')) ?>" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="<?= e(asset('css/app.css')) ?>">
 </head>

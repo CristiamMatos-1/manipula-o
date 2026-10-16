@@ -11,8 +11,8 @@ final class App
         set_exception_handler([self::class, 'handleException']);
 
         $installed = Config::installed();
-        if (!$installed && Request::path() !== '/install') {
-            redirect('/install');
+        if (!$installed && !in_array(Request::path(), ['/install', '/install.php'], true)) {
+            redirect('/install.php');
         }
 
         $router = new Router();

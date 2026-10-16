@@ -56,7 +56,13 @@ final class Client
     }
 }
 
-function path(string $loc): string { return (string) parse_url($loc, PHP_URL_PATH); }
+function path(string $loc): string
+{
+    global $base;
+    $p = (string) parse_url($loc, PHP_URL_PATH);
+    $prefix = (string) parse_url($base, PHP_URL_PATH);
+    return $prefix !== '' && str_starts_with($p, $prefix) ? substr($p, strlen($prefix)) : $p;
+}
 
 echo "== Site público ==\n";
 $anon = new Client($base);

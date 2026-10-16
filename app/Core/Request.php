@@ -12,11 +12,15 @@ final class Request
 
     public static function path(): string
     {
+        if (defined('FORCE_PATH')) {
+            return FORCE_PATH;
+        }
         $path = (string) parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
         $base = Config::basePath();
         if ($base !== '' && str_starts_with($path, $base)) {
             $path = substr($path, strlen($base));
         }
+        $path = preg_replace('#/index\.php$#', '', $path) ?? $path;
         $path = rawurldecode($path);
         $path = '/' . trim($path, '/');
         return $path === '' ? '/' : $path;

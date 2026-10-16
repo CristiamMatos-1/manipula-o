@@ -7,8 +7,10 @@ use App\Core\Router;
 
 return static function (Router $r, bool $installed): void {
     if (!$installed) {
-        $r->get('/install', [InstallController::class, 'form']);
-        $r->post('/install', [InstallController::class, 'run']);
+        foreach (['/install', '/install.php'] as $path) {
+            $r->get($path, [InstallController::class, 'form']);
+            $r->post($path, [InstallController::class, 'run']);
+        }
         return;
     }
 
