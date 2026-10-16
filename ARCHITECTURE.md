@@ -1,310 +1,171 @@
-# ARCHITECTURE - Drogacare Portal & CMS
+# ARCHITECTURE — Drogacare (PHP + MySQL)
 
-Documento técnico para engenheiros. O guia de uso do cliente está no [`README.md`](./README.md).
+Documento para engenheiros. Para o guia do cliente veja o [`README.md`](README.md) e para instalação no cPanel
+[`docs/DEPLOY-CPANEL.md`](docs/DEPLOY-CPANEL.md).
 
-## Sumário
+## 1. Visão geral
 
-1. [Stack](#1-stack)
-2. [Inicialização e comandos](#2-inicialização-e-comandos)
-3. [Estrutura de pastas](#3-estrutura-de-pastas)
-4. [Variáveis de ambiente](#4-variáveis-de-ambiente)
-5. [Modelo de dados](#5-modelo-de-dados)
-6. [Autenticação e sessão](#6-autenticação-e-sessão)
-7. [RBAC - matriz de permissões](#7-rbac---matriz-de-permissões)
-8. [Fluxos de segurança](#8-fluxos-de-segurança)
-9. [LGPD e auditoria](#9-lgpd-e-auditoria)
-10. [Frontend, design system e responsividade](#10-frontend-design-system-e-responsividade)
-11. [CMS: conteúdo e SEO](#11-cms-conteúdo-e-seo)
-12. [Migrando de SQLite para PostgreSQL](#12-migrando-de-sqlite-para-postgresql)
-13. [Deploy e operação](#13-deploy-e-operação)
-14. [Decisões de projeto e limitações conhecidas](#14-decisões-de-projeto-e-limitações-conhecidas)
+Monólito server-side em **PHP 8.1+ puro** (sem framework e sem Composer em produção), banco **MySQL 5.7+/MariaDB 10.3+**
+via **PDO**. Site público e painel administrativo vivem na mesma aplicação.
 
----
+| Camada | Tecnologia |
+|---|---|
+| Linguagem | PHP 8.1+ (`strict_types`), extensões `pdo_mysql`, `mbstring`, `openssl` |
+| Banco | MySQL/MariaDB, InnoDB, `utf8mb4_unicode_ci`, prepared statements |
+| UI | Templates PHP + Tailwind CSS (compilado e versionado em `public/assets/css/app.css`) + JS vanilla |
+| Fonte | Raleway (woff2 hospedado em `public/assets/fonts`), fallback Arial |
+| Ícones | SVGs Lucide embutidos (`app/Core/icons.php`) + marcas (Facebook/Instagram/YouTube/WhatsApp) |
+| E-mail | Cliente SMTP próprio (`app/Core/Mailer.php`) ou simulação em log |
+| Testes | Script E2E HTTP (`tests/e2e.php`) |
 
-## 1. Stack
+Node.js é necessário **apenas** para recompilar o CSS (ver §10).
 
-| Camada | Tecnologia | Observação |
-| --- | --- | --- |
-| Framework | **Next.js 14** (App Router, Server Components, Server Actions) | Mutations via Server Actions (checagem de `Origin` nativa contra CSRF) |
-| Linguagem | **TypeScript** (strict) | |
-| Estilo | **Tailwind CSS 3** | Tokens da marca em `tailwind.config.ts`; mobile-first |
-| ORM / BD | **Prisma 6** + **SQLite** (dev) / **PostgreSQL** (produção) | Enums nativos |
-| Senhas | **bcrypt** (custo 12) | |
-| Sessão | **jose** (JWT HS256 em cookie `httpOnly`) | `jose` é compatível com Edge (middleware) |
-| Token de recuperação | **jsonwebtoken** | Só roda em Node (rotas/ações), nunca no middleware |
-| E-mail | **nodemailer** (`SMTP_URL`) | Simulado no console se `SMTP_URL` vazio |
-| Validação | **zod** | Toda entrada de formulário é validada no servidor |
-| Ícones | **lucide-react** | Ícones de redes sociais são SVGs próprios (`components/site/icons.tsx`) |
-| Fonte | **Raleway** via `next/font/google` (fallback Arial) | Self-host automático pelo Next (sem requisição ao Google em runtime) |
-
-## 2. Inicialização e comandos
-
-Como o projeto foi criado (referência):
-
-```bash
-npx create-next-app@14 . --typescript --tailwind --eslint --app --src-dir --import-alias "@/*" --use-npm
-npm i @prisma/client@6 lucide-react bcrypt jsonwebtoken jose nodemailer zod server-only
-npm i -D prisma@6 tsx @types/bcrypt @types/jsonwebtoken @types/nodemailer
-```
-
-Rodar localmente:
-
-```bash
-npm install
-cp .env.example .env     # edite os segredos
-npm run setup            # prisma generate + db push + seed
-npm run dev
-```
-
-| Script | Função |
-| --- | --- |
-| `npm run dev` / `build` / `start` | Next.js |
-| `npm run lint` / `typecheck` | ESLint / `tsc --noEmit` |
-| `npm run setup` | `prisma generate && prisma db push && prisma db seed` |
-| `npm run db:push` | Sincroniza o schema com o banco (sem histórico de migrations) |
-| `npm run db:migrate` | `prisma migrate dev` (gera migrations versionadas; recomendado em produção) |
-| `npm run db:seed` | Executa `prisma/seed.ts` (idempotente) |
-| `npm run db:reset` | Apaga e recria o banco (**destrutivo**) |
-| `npm run db:studio` | Prisma Studio |
-
-## 3. Estrutura de pastas
+## 2. Estrutura de pastas
 
 ```
-.
-├── prisma/
-│   ├── schema.prisma            # Modelo de dados completo
-│   └── seed.ts                  # Admin inicial (admin/admin + troca obrigatória), CompanyInfo, conteúdo de exemplo
-├── public/                      # logo.svg, avatar-placeholder.svg (+ fotos/arquivos estáticos)
-├── src/
-│   ├── middleware.ts            # 1ª barreira de /admin/*: sessão + troca de senha pendente
-│   ├── app/
-│   │   ├── layout.tsx           # <html>, fonte Raleway, metadata global
-│   │   ├── globals.css          # Tailwind + componentes (.btn, .input, .card...)
-│   │   ├── robots.ts / sitemap.ts
-│   │   ├── (site)/              # Site público (header, footer, WhatsApp, cookies)
-│   │   │   ├── page.tsx         # Home: Hero, Sobre, Artigos, Contato
-│   │   │   ├── blog/            # Listagem e artigo
-│   │   │   └── p/[slug]/        # Páginas institucionais
-│   │   └── admin/
-│   │       ├── actions/         # Server Actions: auth, content, users, company
-│   │       ├── (auth)/          # login, esqueci-senha, redefinir-senha, alterar-senha
-│   │       └── (panel)/         # Área logada (layout com sidebar responsiva)
-│   │           ├── page.tsx     # Dashboard
-│   │           ├── posts/ paginas/ empresa/
-│   │           ├── usuarios/    # SUPERADMIN
-│   │           └── auditoria/   # SUPERADMIN
-│   ├── components/
-│   │   ├── site/                # Hero, About, Contact, ShareButtons, CookieBanner, WhatsAppFloat...
-│   │   ├── admin/               # AdminShell, ContentForm, UserForm, CompanyForm, ui (StatCard...)
-│   │   └── ui/form.tsx          # Field, TextArea, SubmitButton, ConfirmButton, FormMessage
-│   └── lib/
-│       ├── auth/                # rbac.ts, session.ts, guards.ts, password.ts, reset-token.ts
-│       ├── audit.ts             # Trilha de auditoria
-│       ├── mail.ts              # nodemailer (+ modo simulado)
-│       ├── content.tsx          # Renderizador seguro de conteúdo (sem HTML bruto)
-│       ├── embed.ts             # Validação de YouTube / Google Maps / WhatsApp
-│       ├── company.ts, seo.ts, env.ts, db.ts, utils.ts, form.ts
-└── .env.example
+.htaccess                 # (raiz) encaminha para public/ e bloqueia pastas privadas
+public/                   # única pasta que deve ser exposta pelo servidor web
+  index.php               # front controller
+  .htaccess               # rewrite para index.php + cache de estáticos
+  assets/{css,js,fonts,img}
+app/
+  bootstrap.php           # autoload (App\ -> app/), config, timezone, log de erros
+  routes.php              # tabela de rotas
+  Core/                   # App, Router, Request, View, Config, Database, Session, Csrf, Auth,
+                          # Rbac, Password, Audit, Mailer, Content, Embed, Installer, helpers, icons
+  Models/                 # Company (singleton), ContentRepo (posts/pages)
+  Controllers/            # SiteController, InstallController, Admin/*
+  Views/                  # layouts/, site/, auth/, admin/, install/, partials/
+config/
+  config.example.php      # modelo; config.php é gerado pelo instalador (gitignored)
+database/schema.sql       # esquema idempotente
+storage/                  # logs, sessões, installed.lock (privado)
+bin/install.php           # instalador CLI
+assets-src/input.css, tailwind.config.js, package.json   # build do CSS
+tests/e2e.php
 ```
 
-## 4. Variáveis de ambiente
+## 3. Fluxo de requisição
 
-Veja `.env.example`. Em `NODE_ENV=production`, segredos ausentes ou curtos (< 32 caracteres) **impedem a aplicação de funcionar** (falha rápida, `src/lib/env.ts`).
+`public/index.php` → `bootstrap.php` → `App::run()`:
 
-| Variável | Obrigatória | Descrição |
-| --- | --- | --- |
-| `DATABASE_URL` | Sim | SQLite: `file:./dev.db` (relativo a `prisma/`). PostgreSQL: `postgresql://user:pass@host:5432/drogacare?schema=public` |
-| `SESSION_SECRET` | Sim (prod) | Assina o JWT de sessão. ≥ 32 chars. `openssl rand -base64 48` |
-| `RESET_TOKEN_SECRET` | Sim (prod) | Assina o JWT de recuperação de senha. **Diferente** de `SESSION_SECRET` |
-| `APP_URL` | Sim (prod) | URL pública (links nos e-mails, `metadataBase`, sitemap, links de compartilhamento) |
-| `SMTP_URL` | Não* | Ex.: `smtps://usuario:senha@smtp.provedor.com:465`. *Sem ela, o e-mail é simulado (link impresso no console do servidor). **Obrigatória em produção** para a recuperação de senha funcionar |
-| `MAIL_FROM` | Não | Remetente. Padrão: `Drogacare <nao-responda@drogacare.com.br>` |
-| `SEED_ADMIN_EMAIL` | Não | E-mail do admin criado pelo seed. Padrão `admin@drogacare.com.br` |
+1. Envia cabeçalhos de segurança (§7).
+2. Se não instalado (`Config::installed()` = `config.php` válido **e** `storage/installed.lock`), só existe a rota `/install`; qualquer outra URL redireciona para ela.
+3. `Router::dispatch()` casa método + caminho (regex; `{id}` numérico, demais `{param}` = `[^/]+`).
+4. Para `/admin` e `/install`: inicia sessão (lazy), `Cache-Control: no-store` e `noindex`.
+5. POSTs passam por verificação **CSRF central** (419 em falha).
+6. Controller autentica/autoriza (`Auth::require`, `Auth::requirePermission`) e renderiza com `View::render(view, data, layout)`.
+7. Exceções não tratadas são logadas e geram 500 genérico (detalhes só com `debug` = true).
 
-Nunca versione `.env` (já está no `.gitignore`).
+O site público **não inicia sessão** e portanto não grava cookies.
+
+## 4. Configuração (substitui variáveis de ambiente)
+
+`config/config.php` (gerado pelo instalador, permissão 640, fora do Git):
+
+| Chave | Descrição |
+|---|---|
+| `app_url` | URL pública, usada em sitemap, links de e-mail e canonical |
+| `debug` | `false` em produção |
+| `db.host/port/name/user/pass` | Conexão MySQL |
+| `smtp_url` | `smtps://user:pass@host:465` (SSL) ou `smtp://user:pass@host:587` (STARTTLS). Vazio = simulação |
+| `mail_from` | Remetente, ex.: `Drogacare <nao-responda@dominio>` |
 
 ## 5. Modelo de dados
 
-Definido em `prisma/schema.prisma`.
+Tabelas em `database/schema.sql` (idempotente):
 
-| Modelo | Finalidade | Pontos-chave |
-| --- | --- | --- |
-| `User` | Usuários do painel | `role` (enum `Role`), `active`, `mustChangePassword`, `resetToken` (**hash sha256**) + `resetTokenExpiry`, `failedLoginAttempts`, `lockedUntil`, `lastLoginAt` |
-| `AuditLog` | Trilha de auditoria (LGPD) | `userId` (FK, `onDelete: SetNull`), `userEmail` (snapshot), `action`, `entity`, `entityId`, `details`, `ip`, `createdAt` |
-| `Post` | Artigos | `slug` único, `status` (`DRAFT`/`PUBLISHED`), `publishedAt`, SEO (`seoTitle`, `seoDescription`, `seoKeywords`, `ogImageUrl`), `coverUrl` |
-| `Page` | Páginas institucionais | Mesma estrutura de `Post` (sem capa) |
-| `CompanyInfo` | **Singleton** (`id = 1`) | `foundedYear` (1991), farmacêutico (`pharmacistName`, `pharmacistCrf`, `pharmacistPhotoUrl`), contato, `whatsapp`, `mapsEmbedUrl`, `heroVideoUrl`, `youtubeUrl`, `instagramUrl`, `facebookUrl` |
+- **users** — `role ENUM('SUPERADMIN','EDITOR_CONTEUDO','VISUALIZADOR')`, `active`, `must_change_password`, `reset_token` (sha256 do token), `reset_token_expiry`, `failed_login_attempts`, `locked_until`, `last_login_at`; `email` único.
+- **audit_logs** — `user_id` (FK `ON DELETE SET NULL`), `user_email` (snapshot), `action`, `entity`, `entity_id`, `details`, `ip`, `created_at`; índices por data, usuário, entidade e (ip, action, created_at) usado no throttling.
+- **posts** — `title`, `slug` único, `excerpt`, `content`, `cover_url`, `meta_title`, `meta_description`, `status ENUM('DRAFT','PUBLISHED')`, `published_at`, `author_id`.
+- **pages** — igual a `posts` sem capa/resumo.
+- **company_info** — singleton (`id = 1` com `CHECK`): nome, slogan, `founded_year` (1991), farmacêutico (nome, CRF, foto), telefone, WhatsApp, e-mail, endereço, `maps_embed_url`, `hero_video_url`, `youtube_url`, `instagram_url`, `facebook_url`.
 
-Enums: `Role { SUPERADMIN, EDITOR_CONTEUDO, VISUALIZADOR }`, `ContentStatus { DRAFT, PUBLISHED }`.
+Todas as consultas usam prepared statements; nomes de tabela nunca vêm do usuário (`ContentRepo` fixa os nomes).
 
-O singleton é garantido por `id Int @id @default(1)` e acessado sempre via `upsert({ where: { id: 1 } })` (`lib/company.ts`).
+## 6. RBAC
 
-## 6. Autenticação e sessão
+Fonte única: `App\Core\Rbac::PERMISSIONS`.
 
-- **Login** (`actions/auth.ts#loginAction`): valida com zod, busca o usuário, compara com bcrypt e emite o cookie `dc_session`.
-- **Cookie**: JWT HS256 (8 h), `httpOnly`, `sameSite=lax`, `secure` em produção. Payload mínimo: `uid`, `role`, `mcp` (troca de senha pendente).
-- **Duas camadas de proteção:**
-  1. `middleware.ts` (Edge, sem banco): rejeita requisições a `/admin/*` sem JWT válido e **força `/admin/alterar-senha`** enquanto `mcp = true`. Adiciona `Cache-Control: no-store` e `X-Robots-Tag: noindex`.
-  2. `lib/auth/guards.ts` (Node, com banco): `requireUser()` / `requirePermission()` recarregam o usuário **do banco a cada requisição**. Usuário desativado, excluído, com perfil alterado ou com troca de senha pendente é tratado imediatamente, mesmo com um JWT ainda válido. **O JWT nunca é a fonte da verdade do perfil.**
-- Toda Server Action chama `requirePermission(...)` no início (não confiar em UI escondida).
+| Permissão | SUPERADMIN | EDITOR_CONTEUDO | VISUALIZADOR |
+|---|:--:|:--:|:--:|
+| `dashboard:view` | sim | sim | sim |
+| `content:view` | sim | sim | sim |
+| `content:write` / `publish` / `delete` | sim | sim | não |
+| `company:view` | sim | sim | sim |
+| `company:edit` | sim | sim | não |
+| `users:manage` | sim | **não** | não |
+| `audit:view` | sim | não | não |
 
-## 7. RBAC - matriz de permissões
+Regras adicionais: o usuário é relido do banco **a cada requisição** (desativação/mudança de papel valem imediatamente);
+não é possível excluir/desativar a si mesmo nem remover/rebaixar o **último SUPERADMIN**.
+O menu esconde itens, mas a autorização real é sempre no servidor (testado com POSTs diretos no E2E).
 
-Fonte única da verdade: `src/lib/auth/rbac.ts` (`PERMISSIONS`).
+## 7. Segurança
 
-| Permissão | Descrição | SUPERADMIN | EDITOR_CONTEUDO | VISUALIZADOR |
-| --- | --- | :-: | :-: | :-: |
-| `dashboard:view` | Ver o Dashboard | ✅ | ✅ | ✅ |
-| `content:view` | Listar/abrir artigos e páginas | ✅ | ✅ | ✅ |
-| `content:write` | Criar/editar (rascunho) | ✅ | ✅ | ❌ |
-| `content:publish` | Publicar/despublicar | ✅ | ✅ | ❌ |
-| `content:delete` | Excluir artigos/páginas | ✅ | ✅ | ❌ |
-| `company:view` | Ver Dados da empresa | ✅ | ✅ | ✅ |
-| `company:edit` | Editar Dados da empresa | ✅ | ✅ | ❌ |
-| `users:manage` | Criar/editar/excluir usuários e perfis | ✅ | ❌ | ❌ |
-| `audit:view` | Tela de Auditoria / logs globais no Dashboard | ✅ | ❌ | ❌ |
+**Autenticação e senhas**
+- bcrypt custo 12 (`password_hash`), política: ≥10 caracteres, maiúscula, minúscula, número, lista de senhas fracas.
+- Admin inicial `admin@drogacare.com.br` / `admin` com `must_change_password = 1`: nenhuma rota do painel funciona antes da troca.
+- Bloqueio da conta após 5 falhas (15 min) + limite por IP (20 falhas / 15 min, calculado a partir de `audit_logs`).
+- Erro de login genérico e verificação de hash “dummy” quando o e-mail não existe (sem enumeração por mensagem ou tempo).
+- Recuperação: token `bin2hex(random_bytes(32))`, armazenado como sha256, validade 30 min, uso único; resposta idêntica exista ou não o e-mail.
+- Sessão: ID regenerado no login, cookie `HttpOnly`, `SameSite=Lax`, `Secure` em HTTPS, 8 h de vida e 2 h de inatividade, `use_strict_mode`.
 
-Comportamento ao violar: páginas redirecionam para `/admin/acesso-negado`; sem sessão, para `/admin/login`. Não-superadmins veem no Dashboard apenas as **próprias** atividades.
+**Aplicação**
+- CSRF: token por sessão verificado centralmente em todo POST.
+- XSS: toda saída passa por `e()`; conteúdo de artigos/páginas usa `Content::render` (escapa tudo e só aceita `#`, `##`, `-`, `**negrito**`, links http/https).
+- URLs: `safe_url`/`safe_image_url` (apenas http/https ou caminho local); embeds validados em `Embed` (YouTube via `youtube-nocookie.com`, Google Maps; qualquer outro domínio é descartado).
+- SQLi: PDO com prepared statements (`ATTR_EMULATE_PREPARES=false`; só o instalador usa emulação para executar o schema).
+- Cabeçalhos: CSP estrita (`default-src 'self'`; sem scripts/estilos inline; `frame-src` só YouTube/Google), `X-Content-Type-Options`, `X-Frame-Options`/`frame-ancestors`, `Referrer-Policy`, `Permissions-Policy`, HSTS em HTTPS.
+- `.htaccess` nega acesso web a `app/`, `config/`, `database/`, `storage/`, `bin/` e arquivos `*.sql|*.md|*.lock|*.log`.
+- Instalador trava após o uso (`storage/installed.lock`).
 
-Para adicionar uma permissão: inclua em `PERMISSIONS`, use `requirePermission("x:y")` na página **e** na Server Action, e esconda o item de menu com `can(role, "x:y")`.
+## 8. LGPD e auditoria
 
-Invariantes de usuários (`actions/users.ts`): nunca remover/desativar/rebaixar o **último SUPERADMIN ativo**; ninguém pode excluir ou desativar a **própria** conta.
+- `Audit::log()` grava ator (id + e-mail snapshot), ação, entidade, detalhe curto, IP e data. **Nunca** grava senhas ou tokens.
+- Ações cobertas: login/falha/bloqueio/logout, recuperação e troca de senha, CRUD de usuários, criar/editar/publicar/despublicar/excluir artigos e páginas, edição da empresa.
+- Tela `/admin/auditoria` (somente SUPERADMIN) com busca e paginação.
+- Site público sem cookies de sessão; banner de consentimento guarda só a escolha (`localStorage` + cookie `dc_cookie_consent`).
+- Fonte hospedada localmente (nenhuma requisição ao Google Fonts); YouTube em modo sem cookies; página de Política de Privacidade semeada.
+- Retenção/expurgo de logs: não automatizado; definir política e rotina conforme o jurídico.
 
-## 8. Fluxos de segurança
+## 9. Rotas
 
-### 8.1 Admin inicial e troca obrigatória
+Público: `/`, `/blog`, `/blog/{slug}`, `/p/{slug}`, `/sitemap.xml`, `/robots.txt`.
+Autenticação: `/admin/login`, `/admin/logout`, `/admin/esqueci-senha`, `/admin/redefinir-senha?token=`, `/admin/alterar-senha`, `/admin/acesso-negado`.
+Painel: `/admin`, `/admin/posts[/novo|/{id}|/{id}/excluir]`, `/admin/paginas[...]`, `/admin/empresa`, `/admin/usuarios[...]`, `/admin/auditoria`.
+Instalação (somente enquanto não instalado): `/install`.
 
-`prisma/seed.ts` cria `admin@drogacare.com.br` com senha `admin` (bcrypt) e `mustChangePassword = true`. O seed é **idempotente** e **nunca sobrescreve** um admin existente. Enquanto a flag estiver ativa:
+Artigos/páginas só são públicos com `status = 'PUBLISHED'`; rascunhos retornam 404 ao público.
 
-- o cookie leva `mcp = true` e o middleware redireciona qualquer `/admin/*` para `/admin/alterar-senha`;
-- `requireUser()` também redireciona (caso o cookie esteja desatualizado);
-- `changePasswordAction` exige a senha atual, aplica a política, grava o hash, limpa a flag e reemite a sessão.
+## 10. Build do CSS
 
-Usuários criados no painel e senhas redefinidas por um administrador também recebem `mustChangePassword = true`.
+O CSS compilado está versionado; só recompile se alterar classes Tailwind/`assets-src/input.css`:
 
-> **Em produção:** altere a senha e o e-mail do admin imediatamente após o primeiro deploy.
+```bash
+npm install
+npm run build:css     # gera public/assets/css/app.css (minificado)
+npm run watch:css     # desenvolvimento
+```
 
-### 8.2 Política de senha
+## 11. Desenvolvimento local e testes
 
-Mínimo de 10 caracteres, maiúscula, minúscula e número; máximo 128; lista de senhas óbvias bloqueada; nova senha ≠ atual (`lib/auth/password.ts`).
+```bash
+mysql -e "CREATE DATABASE drogacare CHARACTER SET utf8mb4; CREATE USER 'droga'@'localhost' IDENTIFIED BY 'senha'; GRANT ALL ON drogacare.* TO 'droga'@'localhost';"
+php bin/install.php --db=drogacare --user=droga --pass=senha --url=http://localhost:8000
+php -S localhost:8000 -t public public/index.php
+php tests/e2e.php http://localhost:8000     # em instalação nova
+```
 
-### 8.3 Recuperação de senha
+O E2E (curl + cookie jars) cobre: site público, troca obrigatória de senha, dashboard, usuários, rascunho × publicado,
+escape de XSS, dados da empresa, RBAC de Editor/Visualizador (inclusive POSTs diretos), recuperação de senha com token de uso único,
+bloqueio por tentativas e auditoria. Deve ser rodado em uma instalação nova (cria usuários e conteúdo de teste).
 
-1. `forgotPasswordAction` recebe o e-mail e **sempre** responde com a mesma mensagem (sem enumeração de usuários).
-2. Se o usuário existe e está ativo: gera um JWT (`purpose: "pwd-reset"`, `jti` aleatório, 30 min, segredo `RESET_TOKEN_SECRET`), grava **apenas o hash sha256** em `resetToken` e a expiração em `resetTokenExpiry`, e envia o link `APP_URL/admin/redefinir-senha?token=...` por e-mail.
-3. `resetPasswordAction` valida: assinatura/expiração do JWT **e** igualdade com o hash armazenado **e** `resetTokenExpiry`. Em caso de sucesso grava a nova senha, **apaga o token (uso único)**, zera bloqueios e encerra a sessão.
-4. Um novo pedido invalida o anterior (o hash é sobrescrito). Desativar o usuário também limpa o token.
+## 12. Decisões e limitações
 
-### 8.4 Proteção contra força bruta
-
-5 falhas consecutivas → `lockedUntil = agora + 15 min` (mesmo com a senha correta, o login é recusado). Mensagem de erro de credenciais é genérica; há um `bcrypt.compare` fictício quando o e-mail não existe para igualar o tempo de resposta.
-
-### 8.5 Demais controles
-
-| Risco | Mitigação |
-| --- | --- |
-| XSS no conteúdo do CMS | Sem HTML bruto: `lib/content.tsx` renderiza uma sintaxe restrita como elementos React; links só `http(s)` com `rel="noopener noreferrer nofollow"` |
-| Embeds maliciosos | `lib/embed.ts`: vídeo só YouTube (`youtube-nocookie.com`) ou arquivo `.mp4/.webm`; mapa só `google.com/maps`; URLs de imagem só `http(s)` ou caminho local |
-| CSRF | Server Actions (verificação de `Origin`) + cookie `SameSite=Lax` |
-| Clickjacking / sniffing | `X-Frame-Options: SAMEORIGIN`, `frame-ancestors 'self'`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `Permissions-Policy` (`next.config.mjs`) |
-| SQL injection | Prisma (consultas parametrizadas) |
-| Indexação do painel | `robots.txt` bloqueia `/admin`; `X-Robots-Tag: noindex` e `robots` meta no layout do admin |
-| Cache de páginas privadas | `Cache-Control: no-store` e `force-dynamic` |
-| Segredos | Validados no boot em produção; nunca no repositório |
-
-## 9. LGPD e auditoria
-
-**Auditoria** (`lib/audit.ts`, modelo `AuditLog`): toda ação relevante grava *quem* (`userId` + snapshot do e-mail), *o quê* (`action`, `entity`, `entityId`, `details`), *quando* (`createdAt`) e *de onde* (`ip`).
-
-Eventos registrados: `LOGIN`, `LOGIN_FAILED`, `LOGIN_LOCKED`, `LOGIN_BLOCKED`, `LOGOUT`, `PASSWORD_RESET_REQUESTED/COMPLETED`, `PASSWORD_CHANGED(_FORCED)`, `USER_CREATE/UPDATE/DELETE`, `POST_*`, `PAGE_*` (create, update, publish, unpublish, delete), `COMPANY_UPDATE` (lista os campos alterados, não os valores) e `SEED_ADMIN`.
-
-Regras:
-
-- **Nunca** se grava senha, hash ou token em `details`.
-- Se um usuário é excluído, os logs permanecem (`onDelete: SetNull` + `userEmail`), preservando a rastreabilidade.
-- Não existe interface para editar/apagar logs.
-- A tela `/admin/auditoria` é restrita a `audit:view` (SUPERADMIN).
-
-**Boas práticas LGPD aplicadas / a cumprir:**
-
-| Item | Situação |
-| --- | --- |
-| Banner de consentimento de cookies | Implementado (`CookieBanner`): "Aceitar todos" / "Somente essenciais"; escolha em `localStorage` + cookie `dc_cookie_consent` (180 dias); reabrível pelo rodapé |
-| Cookies | Apenas o essencial (`dc_session`, `dc_cookie_consent`); sem trackers. Vídeo do YouTube via `youtube-nocookie.com` |
-| Minimização | O sistema só guarda nome, e-mail e IP de usuários internos |
-| Segurança do tratamento | bcrypt, JWT httpOnly, RBAC, auditoria, bloqueio de força bruta |
-| Política de Privacidade | Página-modelo criada pelo seed (`/p/politica-de-privacidade`). **Deve ser revisada pelo jurídico** |
-| Retenção de logs / IP | O IP é dado pessoal: defina prazo de retenção (ex.: 6 meses a 1 ano) e rotina de expurgo conforme a política da empresa (pendência operacional) |
-| Direitos do titular | Atendimento via e-mail de contato; exclusão/edição de usuários pelo painel |
-
-Se for adicionar analytics/pixels no futuro, carregue-os **somente** após o consentimento `all` (`localStorage["dc_cookie_consent"]`).
-
-## 10. Frontend, design system e responsividade
-
-**Cores oficiais** (`tailwind.config.ts` → `brand.*`):
-
-| Token | Hex | Uso típico |
-| --- | --- | --- |
-| `brand-navy` | `#061e3b` | Texto, rodapé, sidebar |
-| `brand-blue` | `#2775bb` | Botões primários, links |
-| `brand-sky` | `#1ea8e0` | Destaques, foco |
-| `brand-green` | `#7bc58f` | Acentos, sucesso |
-| `brand-mint` | `#c2e4d2` | Fundos suaves |
-| `brand-forest` | `#224e41` | Botão de publicar, textos de sucesso |
-
-**Tipografia:** Raleway (`--font-raleway`, `next/font/google`) com fallback Arial (`font-sans`).
-
-**Responsividade (mobile-first):** tudo é desenhado para telas pequenas e ampliado com `sm:` (640), `md:` (768), `lg:` (1024) e `xl:`. Exemplos: menu hambúrguer no site e drawer lateral no painel (< `lg`); tabelas viram **cartões** no mobile (< `md`); alvos de toque ≥ 44px; barra de ações do editor fixa na base no celular.
-
-**Componentes do site:** `Hero` (vídeo YouTube/arquivo, com placeholder), `About` (tempo de mercado = `ano atual − foundedYear` + card do farmacêutico), `Contact` (iframe Google Maps), `WhatsAppFloat` (`fixed bottom-4 right-4`, oculto sem número), `ShareButtons` (WhatsApp, Facebook, Instagram, YouTube, copiar link), `CookieBanner`.
-
-Nota sobre o Instagram: não existe URL pública de compartilhamento. O botão usa a **Web Share API** (menu nativo do celular) e, sem suporte, copia o link e abre o Instagram.
-
-**Acessibilidade:** link "pular para o conteúdo", `aria-*` em menus/diálogos, foco visível, mensagens de erro com `role="alert"`.
-
-## 11. CMS: conteúdo e SEO
-
-- **Ciclo de vida:** `DRAFT` (invisível no site público; 404) ↔ `PUBLISHED`. `publishedAt` é gravado na **primeira** publicação e preservado depois. Botões do formulário enviam `intent=draft|publish` (`actions/content.ts#saveContentAction`).
-- **Slug:** gerado do título (sem acentos) se vazio, com checagem de unicidade.
-- **SEO:** `generateMetadata` usa `seoTitle`, `seoDescription`, `seoKeywords`, `ogImageUrl` (Open Graph/Twitter), com canonical. `sitemap.xml` lista apenas conteúdo publicado.
-- **Editor:** texto simples com sintaxe restrita (`##`, `-`, `**`, `[txt](url)`). Intencional (segurança). Para um editor rico (TipTap/Markdown), sanitize a saída (ex.: `rehype-sanitize`) antes de renderizar.
-- **Cache:** páginas públicas são dinâmicas; as ações chamam `revalidatePath` para rotas relacionadas.
-
-## 12. Migrando de SQLite para PostgreSQL
-
-1. Em `prisma/schema.prisma`, altere `provider = "sqlite"` para `provider = "postgresql"`.
-2. Defina `DATABASE_URL="postgresql://..."`.
-3. Remova `prisma/dev.db` e quaisquer migrations antigas (se existirem) e gere as migrations do novo provider:
-
-   ```bash
-   npx prisma migrate dev --name init
-   npm run db:seed
-   ```
-
-4. Em produção: `npx prisma migrate deploy` (nunca `db push`/`reset`).
-
-O schema não usa recursos específicos do SQLite. Para buscas na Auditoria sem diferenciar maiúsculas/minúsculas no PostgreSQL, adicione `mode: "insensitive"` aos filtros `contains` em `auditoria/page.tsx`.
-
-## 13. Deploy e operação
-
-Checklist de produção:
-
-- [ ] `NODE_ENV=production`, `SESSION_SECRET` e `RESET_TOKEN_SECRET` fortes e **distintos**.
-- [ ] `APP_URL` correto (https) e **HTTPS** obrigatório (cookie `secure`).
-- [ ] `SMTP_URL` configurado e testado (senão ninguém recupera a senha).
-- [ ] PostgreSQL com backup automático.
-- [ ] Trocar a senha e o e-mail do admin inicial no primeiro acesso.
-- [ ] Revisar e publicar a Política de Privacidade; definir retenção de logs.
-- [ ] Atrás de proxy/CDN: repassar `X-Forwarded-For` (usado para registrar o IP na auditoria) e considerar rate limiting por IP no proxy.
-- [ ] Cadastrar em *Dados da empresa*: WhatsApp, farmacêutico, CRF, foto, mapa, vídeo, redes sociais.
-
-Plataformas: qualquer host Node (Vercel, Railway, Render, VPS com `npm run start` + Nginx). Em Vercel/serverless use PostgreSQL gerenciado (SQLite não persiste).
-
-## 14. Decisões de projeto e limitações conhecidas
-
-- **Login por e-mail** (sem campo "usuário"): o admin inicial é `admin@drogacare.com.br` / `admin`. Necessário para a recuperação de senha por e-mail.
-- **Bloqueio por conta, não por IP:** protege contas, mas um atacante pode bloquear uma conta alvo de propósito (DoS de conta). Mitigação: rate limit por IP no proxy/WAF; um SUPERADMIN pode redefinir a senha para desbloquear.
-- **Upload de imagens:** não há upload; fotos/capas são por URL ou arquivos em `public/`. Um provedor (S3/Cloudinary) pode ser integrado futuramente.
-- **CSP restrita:** apenas `frame-ancestors/base-uri/form-action`. Uma CSP completa com nonces é um endurecimento recomendado.
-- **Aviso do build:** o `next build` pode emitir um aviso do `jose` sobre `CompressionStream` no Edge Runtime; é inofensivo (não usamos JWE).
-- **Sem testes automatizados** nesta primeira entrega; o fluxo foi validado manualmente de ponta a ponta (login forçado, RBAC dos 3 perfis, rascunho vs. publicação, recuperação de senha de uso único, bloqueio de força bruta, drawer mobile).
+- **Sem framework/Composer**: reduz superfície, facilita hospedagem compartilhada; o custo é manter roteamento/validação próprios.
+- **SMTP próprio** simples (AUTH LOGIN); para volume ou entregabilidade avançada, trocar por um provedor transacional.
+- **Sem upload de imagens**: fotos/capas são URLs (http/https ou caminho em `public/`). Upload com validação de MIME pode ser a próxima evolução.
+- **Sem migrações versionadas**: o `schema.sql` é idempotente para criação; alterações futuras exigem scripts incrementais.
+- **Sem 2FA** no painel; recomendável para o SUPERADMIN em evolução futura.
+- **Sessões em arquivos** (`storage/sessions`); em múltiplos servidores usar handler compartilhado.

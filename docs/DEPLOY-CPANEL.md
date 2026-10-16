@@ -1,154 +1,122 @@
-# Instalação no cPanel (Gerenciador de Arquivos + Setup Node.js App)
+# Instalação no cPanel (Gerenciador de Arquivos) — PHP + MySQL
 
-Guia passo a passo para colocar o portal Drogacare no ar em uma hospedagem com **cPanel**.
+Não é necessário Node.js, Composer nem terminal: o sistema é PHP puro e o CSS já vem compilado.
 
-## Antes de começar: verifique sua hospedagem
+## Requisitos da hospedagem
 
-O site é uma aplicação **Node.js** (Next.js). Não basta enviar arquivos para a `public_html` como em um site comum. Seu plano precisa ter, no cPanel, o ícone **"Setup Node.js App"** (também chamado "Node.js Selector"), com **Node.js 18.17 ou superior (recomendado 20)**.
+- PHP **8.1 ou superior** (cPanel → *Selecionar versão do PHP* / *MultiPHP Manager*).
+- Extensões PHP: `pdo_mysql`, `mbstring`, `openssl`, `curl` (opcional), `fileinfo`.
+- MySQL 5.7+ ou MariaDB 10.3+.
+- Apache com `mod_rewrite` (padrão no cPanel) e certificado SSL (AutoSSL / Let's Encrypt).
 
-- Se o ícone **não existir**, peça ao suporte da hospedagem para habilitar Node.js, ou contrate um plano com suporte (VPS/Cloud). Hospedagens compartilhadas básicas não rodam este projeto.
-- Tenha em mãos: acesso ao cPanel, o domínio apontado para a hospedagem e uma conta de e-mail do domínio (para a recuperação de senha).
+## Passo 1 — Criar o banco de dados
 
----
+1. cPanel → **Bancos de dados MySQL**.
+2. Em *Criar novo banco de dados*, informe um nome (ex.: `drogacare`). O cPanel acrescenta o prefixo da conta (ex.: `conta_drogacare`).
+3. Em *Adicionar novo usuário*, crie um usuário (ex.: `droga`) com uma senha forte. Anote.
+4. Em *Adicionar usuário ao banco de dados*, selecione usuário e banco e marque **TODOS OS PRIVILÉGIOS**.
 
-## Parte 1 - Preparar o pacote no seu computador
+Anote: nome completo do banco, nome completo do usuário, senha. O servidor é `localhost`.
 
-Requisito: Node.js 20+ instalado no computador.
+## Passo 2 — Enviar os arquivos
 
-1. Na pasta do projeto, instale e gere a versão de produção:
+1. No seu computador, compacte **todo o conteúdo** do projeto em um `.zip` (não inclua `node_modules` nem a pasta `.git`).
+2. cPanel → **Gerenciador de Arquivos** → abra `public_html` (ou a pasta do domínio/subdomínio).
+3. Clique em **Carregar**, envie o `.zip`, depois botão direito → **Extrair**.
+4. Confira que dentro de `public_html` estão: `.htaccess`, `app/`, `config/`, `database/`, `public/`, `storage/`, `bin/`.
+   Ative *Mostrar arquivos ocultos* (Configurações) para ver o `.htaccess`.
 
-   ```bash
-   npm install
-   npm run build
-   ```
+> O `.htaccess` da raiz redireciona todo o tráfego para `public/` e bloqueia o acesso web às pastas internas.
+> **Alternativa mais segura:** colocar o projeto fora de `public_html` (ex.: `/home/conta/drogacare`) e
+> apontar o domínio (*Domínios* → *Raiz do documento*) para `/home/conta/drogacare/public`.
 
-2. Crie um arquivo **.zip** com o projeto, **sem** estas pastas/arquivos: `node_modules`, `.git`, `.env`, `prisma/dev.db`.
-   - Mac/Linux:
+## Passo 3 — Permissões de escrita
 
-     ```bash
-     zip -r drogacare.zip . -x "node_modules/*" ".git/*" ".env" "prisma/*.db" "prisma/*.db-journal"
-     ```
+Pelo Gerenciador de Arquivos (botão direito → *Alterar permissões*), garanta que o PHP consiga gravar em:
 
-   - Windows: selecione todas as pastas e arquivos, **exceto** `node_modules`, `.git` e `.env`, clique com o botão direito e escolha *Enviar para > Pasta compactada*.
+- `storage/` e subpastas (`storage/logs`, `storage/sessions`) — permissão **755** (use 775 se der erro).
+- `config/` — **755** durante a instalação (o instalador cria `config/config.php`).
 
-   Importante: a pasta **`.next`** (gerada pelo build) **deve ir dentro do zip**, junto com `server.js`, `package.json`, `package-lock.json`, `prisma/`, `public/` e `src/`.
+## Passo 4 — Rodar o instalador
 
----
+1. Acesse `https://seu-site.com.br/install`.
+2. A tela mostra a verificação do ambiente (versão do PHP, extensões, pastas graváveis). Corrija o que estiver em vermelho.
+3. Preencha:
+   - **Endereço do site** (ex.: `https://www.drogacare.com.br`);
+   - **Servidor do banco**: `localhost`; **porta** `3306`;
+   - **Nome do banco**, **usuário** e **senha** do Passo 1;
+   - **E-mail do administrador** (padrão `admin@drogacare.com.br`);
+   - (opcional) **SMTP** — veja o Passo 6.
+4. Clique em **Instalar**. O instalador cria as tabelas, o administrador inicial (senha `admin`), os dados iniciais da empresa e conteúdo de exemplo, grava `config/config.php` e bloqueia o instalador (`storage/installed.lock`).
 
-## Parte 2 - Enviar os arquivos pelo Gerenciador de Arquivos
+Depois disso `/install` deixa de existir (retorna 404).
 
-1. No cPanel, abra **Gerenciador de Arquivos**.
-2. Vá até a pasta raiz da sua conta (`/home/SEU_USUARIO`). **Não use a `public_html`.**
-3. Clique em **+ Pasta** e crie a pasta `drogacare`.
-4. Entre em `drogacare`, clique em **Carregar** e envie o `drogacare.zip`.
-5. Volte ao gerenciador, selecione o zip, clique em **Extrair** e confirme. Os arquivos devem ficar diretamente em `/home/SEU_USUARIO/drogacare/` (ex.: `drogacare/server.js`, e não `drogacare/drogacare/server.js`).
-6. Apague o zip depois de extrair.
-7. Clique em **Configurações** (canto superior direito) e marque **Mostrar arquivos ocultos**.
+## Passo 5 — Primeiro acesso e troca de senha
 
----
+1. Acesse `https://seu-site.com.br/admin/login`.
+2. E-mail `admin@drogacare.com.br` e senha `admin`.
+3. O sistema exige a criação de uma nova senha (mín. 10 caracteres, maiúscula, minúscula e número).
+4. Vá em **Empresa** e complete os dados (farmacêutico, CRF, foto, telefone, WhatsApp, mapa, vídeo, redes).
+5. Vá em **Usuários** e cadastre a equipe (Editor ou Visualizador).
 
-## Parte 3 - Criar o arquivo de configuração `.env`
+## Passo 6 — E-mail (recuperação de senha)
 
-1. Dentro de `/home/SEU_USUARIO/drogacare/`, clique em **+ Arquivo** e crie `.env`.
-2. Selecione o `.env`, clique em **Editar** e cole o conteúdo abaixo, trocando os valores:
+Sem SMTP, o envio é **simulado** e gravado em `storage/logs/mail.log`.
+Para enviar de verdade, crie uma conta de e-mail no cPanel (ex.: `nao-responda@seu-site.com.br`) e informe no instalador
+(ou edite `config/config.php`):
 
-   ```env
-   DATABASE_URL="file:./dev.db"
-   SESSION_SECRET="COLE_AQUI_UM_TEXTO_ALEATORIO_COM_MAIS_DE_32_CARACTERES_A"
-   RESET_TOKEN_SECRET="COLE_AQUI_OUTRO_TEXTO_ALEATORIO_DIFERENTE_COM_MAIS_DE_32_CARACTERES_B"
-   APP_URL="https://www.seudominio.com.br"
-   SMTP_URL="smtps://contato%40seudominio.com.br:SENHA_DO_EMAIL@mail.seudominio.com.br:465"
-   MAIL_FROM="Drogacare <contato@seudominio.com.br>"
-   SEED_ADMIN_EMAIL="admin@drogacare.com.br"
-   ```
+```php
+'smtp_url'  => 'smtps://nao-responda%40seu-site.com.br:SENHA@mail.seu-site.com.br:465',
+'mail_from' => 'Drogacare <nao-responda@seu-site.com.br>',
+```
 
-Explicação dos campos:
+- `smtps://` = SSL na porta 465; `smtp://` = STARTTLS na porta 587.
+- Caracteres especiais no usuário/senha devem ser codificados (`@` → `%40`).
 
-| Campo | O que colocar |
-| --- | --- |
-| `DATABASE_URL` | Deixe como está. Cria o arquivo de banco em `drogacare/prisma/dev.db` |
-| `SESSION_SECRET` e `RESET_TOKEN_SECRET` | Dois textos longos, aleatórios e **diferentes entre si**. Para gerar, use um gerador de senhas com 48+ caracteres |
-| `APP_URL` | Endereço público do site, com `https://` e sem barra no final |
-| `SMTP_URL` | Dados do e-mail do domínio (crie em **Contas de E-mail** no cPanel). Formato: `smtps://USUARIO:SENHA@SERVIDOR:465`. Troque `@` do usuário por `%40` e codifique símbolos da senha (`@`=`%40`, `#`=`%23`, `/`=`%2F`, `:`=`%3A`). O servidor SMTP aparece em *Contas de E-mail > Conectar dispositivos* |
-| `MAIL_FROM` | Remetente exibido no e-mail |
-| `SEED_ADMIN_EMAIL` | E-mail do administrador inicial (troque por um e-mail real se quiser) |
+## Passo 7 — HTTPS
 
-Sem `SMTP_URL`, o site funciona, mas **a recuperação de senha não envia e-mail**.
+cPanel → **SSL/TLS Status** → *Executar AutoSSL*. Com HTTPS ativo o sistema automaticamente marca os cookies como `Secure` e envia o cabeçalho HSTS.
+Para forçar HTTPS, descomente/adicione no `.htaccess` da raiz:
 
----
+```apache
+RewriteCond %{HTTPS} off
+RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [L,R=301]
+```
 
-## Parte 4 - Criar a aplicação Node.js
+## Passo 8 — Testar
 
-1. No cPanel, abra **Setup Node.js App** e clique em **Create Application**.
-2. Preencha:
-   - **Node.js version:** `20` (ou a mais alta disponível, mínimo 18.17).
-   - **Application mode:** `Production`.
-   - **Application root:** `drogacare` (a pasta criada na Parte 2).
-   - **Application URL:** escolha o domínio (e deixe o caminho em branco, para o site ficar na raiz).
-   - **Application startup file:** `server.js`.
-3. Clique em **Create**.
-4. (Opcional) Em *Environment variables* você pode cadastrar as mesmas variáveis do `.env`. Não é necessário se o `.env` existir.
+- `/` — site público; `/blog`; `/p/politica-de-privacidade`; `/sitemap.xml`.
+- `/admin/login` — painel.
+- Teste no celular (menu hambúrguer, botão do WhatsApp, banner de cookies).
 
----
+## Atualizações
 
-## Parte 5 - Instalar as dependências e preparar o banco
+1. Faça backup: exporte o banco (phpMyAdmin → Exportar) e copie `config/config.php`.
+2. Envie os arquivos novos sobrescrevendo os antigos, **sem apagar** `config/config.php` e `storage/installed.lock`.
+3. O esquema do banco é idempotente (`database/schema.sql`); mudanças futuras virão com instruções.
 
-Ainda na tela da aplicação:
+## Reinstalar do zero
 
-1. Clique em **Run NPM Install** e aguarde terminar (pode levar alguns minutos). Isso instala tudo o que o site precisa e gera o cliente do banco.
-2. Clique em **Run JS script** e execute o script **`setup`**. Ele cria o banco de dados e o administrador inicial.
-   - Se o botão não listar scripts, use o **Terminal** do cPanel (ou SSH). Copie o comando que aparece no topo da tela da aplicação (`source /home/USUARIO/nodevenv/drogacare/20/bin/activate && cd /home/USUARIO/drogacare`) e rode:
-
-     ```bash
-     npm run setup
-     ```
-
-3. Clique em **Restart** (ou **Start App**).
-
----
-
-## Parte 6 - Acessar e configurar
-
-1. Abra `https://www.seudominio.com.br` e confira o site.
-2. Acesse `https://www.seudominio.com.br/admin`.
-3. Entre com **e-mail** `admin@drogacare.com.br` (ou o `SEED_ADMIN_EMAIL`) e **senha** `admin`.
-4. O sistema vai **obrigar** a troca da senha (mínimo de 10 caracteres, com maiúscula, minúscula e número).
-5. Em **Usuários**, edite o administrador e troque o e-mail por um real (usado na recuperação de senha).
-6. Em **Dados da empresa**, preencha farmacêutico, CRF, foto, WhatsApp, endereço, mapa, vídeo e redes sociais.
-7. Teste **Esqueci minha senha** para confirmar que o e-mail chega.
-
----
-
-## Parte 7 - HTTPS (obrigatório)
-
-No cPanel, abra **SSL/TLS Status** e execute **Run AutoSSL** para o domínio. O painel só funciona de forma segura com `https://`, e `APP_URL` deve usar `https://`.
-
----
-
-## Parte 8 - Atualizar o site no futuro
-
-1. No computador: `npm run build` e gere o zip de novo (Parte 1).
-2. No Gerenciador de Arquivos, envie e extraia **sobrescrevendo** os arquivos, **sem apagar** `.env` nem `prisma/dev.db`.
-3. Em *Setup Node.js App*: **Run NPM Install** (se `package.json` mudou) e **Restart**.
-4. Se houve mudança no banco (`prisma/schema.prisma`), rode `npx prisma db push` no Terminal antes de reiniciar.
-
-## Backup
-
-O banco é o arquivo `/home/SEU_USUARIO/drogacare/prisma/dev.db`. Baixe-o periodicamente pelo Gerenciador de Arquivos (ou ative os backups do cPanel). Guarde também o `.env`.
-
----
+Apague `config/config.php` e `storage/installed.lock`, esvazie/recrie o banco e abra `/install` novamente.
+**Isso apaga todos os dados** se você recriar o banco.
 
 ## Problemas comuns
 
-| Sintoma | Causa provável / solução |
-| --- | --- |
-| Página "503" ou "Application failed to start" | Veja o log na pasta da aplicação (`stderr.log`) ou em *Metrics > Errors*. Em geral faltou **Run NPM Install**, a pasta `.next` não foi enviada ou a versão do Node é menor que 18.17 |
-| `Could not find a production build in the '.next' directory` | Envie a pasta `.next` (rode `npm run build` no computador antes de gerar o zip) |
-| Erro mencionando `bcrypt` ou `invalid ELF header` | O módulo foi instalado em outro sistema. Apague `node_modules` no servidor e rode **Run NPM Install** de novo. Se persistir, peça ao suporte ou troque `bcrypt` por `bcryptjs` |
-| Erro do Prisma ("Query engine", "Unable to open the database file") | Rode **Run NPM Install** e depois `npm run setup`; confira a permissão de escrita da pasta `prisma` (755) e se `DATABASE_URL="file:./dev.db"` |
-| Login não mantém a sessão | Acesse por `https://` e confira `APP_URL` e os segredos no `.env` |
-| E-mail de recuperação não chega | Confira `SMTP_URL` (usuário com `%40`, senha codificada, servidor e porta 465) e a pasta de spam |
-| Mudei o `.env` e nada mudou | Clique em **Restart** na tela do *Setup Node.js App* |
-| Site mostra a página padrão da hospedagem | A *Application URL* não está apontando para o domínio certo ou a aplicação está parada |
+| Sintoma | Causa provável | Solução |
+|---|---|---|
+| Erro 500 | PHP < 8.1 ou `.htaccess` incompatível | Selecione PHP 8.1+ no cPanel; veja `storage/logs/php-error.log` |
+| Todas as páginas dão 404 (menos a inicial) | `mod_rewrite` / `.htaccess` ausente | Mostre arquivos ocultos e confira se `.htaccess` existe na raiz e em `public/` |
+| "Access denied for user" no instalador | Usuário sem privilégios no banco | Refaça "Adicionar usuário ao banco" com todos os privilégios; use o nome completo com prefixo |
+| "Could not write config" | Sem permissão em `config/` | Aplique 755/775 na pasta `config` |
+| Fica pedindo login toda hora | Sessão sem permissão de escrita | Garanta escrita em `storage/sessions` (ou na pasta de sessões do PHP) |
+| E-mail de recuperação não chega | SMTP não configurado | Configure `smtp_url`; enquanto isso consulte `storage/logs/mail.log` |
+| Mapa/vídeo não aparecem | URL incorreta | Use o link do YouTube e o `src` do iframe do Google Maps; outros domínios são bloqueados por segurança |
+| CSS quebrado | Raiz do documento errada | Domínio deve apontar para a pasta do projeto (com `.htaccess`) ou para `public/` |
+| Instalador não abre (404) | Já instalado | Remova `storage/installed.lock` e `config/config.php` para reinstalar |
 
-Detalhes técnicos, variáveis e segurança: [`ARCHITECTURE.md`](../ARCHITECTURE.md).
+## Segurança pós-instalação
+
+- Troque a senha do administrador imediatamente (o sistema obriga).
+- Mantenha `config/config.php` com permissão 640/600.
+- Faça backup periódico do banco.
+- Mantenha o PHP atualizado no cPanel.
